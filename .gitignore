@@ -1,0 +1,12 @@
+/node_modules/
+/lib/
+/.build/
+/*.tgz
+/SHA256SUMS
+/.aicraft/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
