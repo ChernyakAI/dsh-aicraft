@@ -1,3 +1,7 @@
+/**
+ * FILE: plugin/tsdown.client.config.ts
+ * DESCRIPTION: Bundle browser runtime helpers while preserving the DSH shared module ABI
+ */
 import { defineConfig } from 'tsdown'
 
 // Match DSH's clientBundle protocol: shared modules come from its module
@@ -14,7 +18,8 @@ export default defineConfig({
   clean: false,
   deps: {
     neverBundle: ['react', 'react/jsx-runtime', 'react-dom/client', '@deepseek-ai/dsh-client-ui-dockkit', '@deepseek-ai/dsh-client-ui-primitives'],
-    alwaysBundle: ['zod'],
+    // Protocol helpers are npm code, not entries in DSH's browser module table.
+    alwaysBundle: ['zod', '@deepseek-ai/dsh-typert-protocol/remote-info'],
   },
   // Rolldown's region labels contain installation-dependent dependency paths.
   plugins: [{

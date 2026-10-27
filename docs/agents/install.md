@@ -1,3 +1,7 @@
+<!--
+FILE: plugin/docs/agents/install.md
+DESCRIPTION: Install and verify the package in the supported DSH runtime
+-->
 # Installing AICraft as an agent inside DeepSeek Harness
 
 Follow this guide when the user asks you to install AICraft. Install the plugin in the current DSH profile. Do not modify the user's projects or tasks.
@@ -5,7 +9,7 @@ Follow this guide when the user asks you to install AICraft. Install the plugin 
 ## Manager route: preparation
 
 1. Find the built-in `plugin_manager` tool, normally enabled in Creator mode. If it is unavailable, explain this and offer the user a choice: switch to Creator mode, or continue without it using the CLI route below. Wait for their choice; missing Creator mode does not prevent building the package. If they switch, resume the manager route. Do not use the alternative route to bypass denied approval.
-2. DeepSeek Harness **0.2.0-rc.2**, GitHub Releases access, and npm registry access are required. Check the current runtime version: the built-in `plugin_manager` with `action: "list_version_exemptions"` returns `runtimeVersion`. This action only reads data; do not grant compatibility exemptions.
+2. DeepSeek Harness **0.2.1-rc.3**, GitHub Releases access, and npm registry access are required. Check the current runtime version: the built-in `plugin_manager` with `action: "list_version_exemptions"` returns `runtimeVersion`. This action only reads data; do not grant compatibility exemptions.
 3. Respect DSH approval requests. Plugin management requires approval for the call or an appropriate access mode. Do not bypass denied or unavailable approval. Do not change the session's access mode to install the plugin.
 4. Call `plugin_manager`:
 
@@ -81,4 +85,4 @@ Request `list_bundles` again: `dsh-aicraft` must appear in the required version 
 
 Briefly report the installed version, activation result, and whether a restart is needed. After restarting, the user can open AICraft in the sidebar. If verification is incomplete, name the remaining step instead of claiming full readiness.
 
-References: [DSH 0.2.0-rc.2 plugin manager](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.0-rc.2/packages/boot/plugin-manager/README.md) and [plugin_manager tool contract](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.0-rc.2/packages/boot/plugin-manager/src/tools.ts).
+References: [DSH 0.2.1-rc.3 plugin manager](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.3/packages/boot/plugin-manager/README.md) and [plugin_manager tool contract](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.2.1-rc.3/packages/boot/plugin-manager/src/tools.ts).

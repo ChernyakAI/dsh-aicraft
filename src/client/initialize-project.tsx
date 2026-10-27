@@ -1,6 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+/**
+ * FILE: plugin/src/client/initialize-project.tsx
+ * DESCRIPTION: Choose the initial project process
+ */
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InitializeProjectRequest, ProcessDefinition } from '../types.ts'
+import { useEffect,useId,useState } from 'react'
+import type { InitializeProjectRequest,ProcessDefinition } from '../types.ts'
 
 const field = { width: '100%', boxSizing: 'border-box' as const, padding: 8, border: '1px solid #8090a050', borderRadius: 6, background: 'transparent', color: 'inherit', font: 'inherit' }
 
@@ -26,8 +30,11 @@ export function InitializeProject({ busy, submit, cancel, dirtyChanged }: {
   const valid = template !== 'manual' || (validId && draft.name.trim())
   return <section aria-label="Initialize AICraft project" style={{ marginTop: 20, fontSize: 13 }}>
     <h3>Initialize AICraft project</h3>
-    <p style={{ opacity: 0.65 }}>Create an empty process or choose a demo. Configure project rules, roles and steps in Project settings after initialization.</p>
-    <form onSubmit={event => { event.preventDefault(); if (!valid || busy) return; void submit({ template, processId: template === 'manual' ? id : 'feature', definition: template === 'manual' ? draft : null }) }}>
+    <p style={{ opacity: 0.65 }}>
+      Create an empty process or choose a demo. Configure project rules, roles and steps
+      in Project settings after initialization.
+    </p>
+    <form onSubmit={(event) => { event.preventDefault(); if (!valid || busy) return; void submit({ template, processId: template === 'manual' ? id : 'feature', definition: template === 'manual' ? draft : null }) }}>
       <fieldset disabled={busy} style={{ border: 0, margin: 0, padding: 0 }}>
         <label style={{ display: 'block', marginBottom: 16 }}>Process template
           <select aria-label="Process template" value={template} onChange={event => setTemplate(event.target.value as InitializeProjectRequest['template'])} style={field}>

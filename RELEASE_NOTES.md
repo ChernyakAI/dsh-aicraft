@@ -1,4 +1,10 @@
-# AICraft 0.0.1
+# Release notes
+
+## Version 0.2.1
+
+- Adapted the plugin for DeepSeek Harness 0.2.1-rc.3.
+
+## Version 0.0.1
 
 Experimental version of the plugin for DeepSeek Harness.
 

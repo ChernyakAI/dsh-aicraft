@@ -34,7 +34,7 @@
 
 > Для установки с помощью агента сначала переключитесь в **Creator mode**.
 
-1. Установите [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) версии **0.2.0-rc.2**.
+1. Установите [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) версии **0.2.1-rc.3**.
 2. Скачайте актуальную версию плагина из [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases).
 3. В DSH откройте **Plugins → Add plugin**, укажите путь к скачанному архиву и установите его. Распаковывать архив не нужно. Для установки зависимостей требуется доступ к npm registry.
 4. Полностью завершите DSH и запустите заново. В Desktop используйте **Quit DeepSeek Harness**: закрытие окна может оставить приложение работающим в трее.

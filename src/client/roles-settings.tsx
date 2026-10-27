@@ -1,5 +1,9 @@
-import { useEffect, useId, useState } from 'react'
-import { Button, Modal, MarkdownText, SegmentedControl, IconEditOutlineRegular, IconTrashOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+/**
+ * FILE: plugin/src/client/roles-settings.tsx
+ * DESCRIPTION: Edit shared role instructions with version guards
+ */
+import { Button,IconEditOutlineRegular,IconTrashOutlineRegular,MarkdownText,Modal,SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect,useId,useState } from 'react'
 import type { RoleDocument } from '../types.ts'
 
 interface Props {
@@ -60,7 +64,7 @@ export function RolesSettings({ workspaceId, roles, usedByDraft, save, remove, r
     <div style={{ border: '1px solid #8090a030', borderRadius: 10, overflow: 'hidden' }}>
       <table aria-label="Project roles" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', textAlign: 'left' }}>
         <thead style={{ background: '#8090a00c' }}><tr><th style={{ width: '35%', padding: 8, fontWeight: 500 }}>Role</th><th style={{ padding: 8, fontWeight: 500 }}>Name</th><th style={{ width: 64, padding: 8, fontWeight: 500 }}>Actions</th></tr></thead>
-        <tbody>{roles.map(role => {
+        <tbody>{roles.map((role) => {
           const name = role.text.match(/^#\s+(.+)$/m)?.[1]?.trim() || role.id
           const used = usedByDraft.includes(role.id)
           return <tr key={role.id} style={{ borderTop: '1px solid #8090a030' }}>
@@ -76,7 +80,7 @@ export function RolesSettings({ workspaceId, roles, usedByDraft, save, remove, r
     </div>
     {error && !editing && !deleting && <p role="alert" style={{ color: '#dc4545' }}>{error}</p>}
     {editing && <Modal open title={editing.version === null ? 'New role' : 'Edit role'} closeLabel="Close" onClose={requestClose}>
-      <form onSubmit={event => { event.preventDefault(); void persist() }}>
+      <form onSubmit={(event) => { event.preventDefault(); void persist() }}>
         <label style={{ display: 'block', marginBottom: 12 }}>Role ID<input aria-label="Role ID" required pattern="[a-z][a-z0-9-]*" readOnly={editing.version !== null} disabled={busy} value={editing.id} onChange={event => setEditing({ ...editing, id: event.target.value })} placeholder="analyst" style={field} /></label>
         <div style={{ width: 220, marginBottom: 12 }}><SegmentedControl id={modeId} value={mode} label="Document mode" disabled={busy} options={[{ value: 'edit', label: 'Editor' }, { value: 'preview', label: 'Preview' }]} onChange={setMode} /></div>
         <div id={`${modeId}-${mode}-panel`} role="tabpanel" aria-labelledby={`${modeId}-${mode}`} style={{ height: 'min(45vh, 360px)', minHeight: 180, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -99,7 +103,9 @@ export function RolesSettings({ workspaceId, roles, usedByDraft, save, remove, r
       footer={<><Button variant="ghost" disabled={busy} onClick={discard}>Cancel</Button><Button variant="outline" className="aicraft-destructive-confirm" disabled={busy} onClick={() => {
         if (busy) return
         setBusy(true); setError('')
-        void remove(workspaceId, deleting.id, deleting.version).then(() => { updated(roles.filter(role => role.id !== deleting.id)); setDeleting(null) }, error => setError(error instanceof Error ? error.message : String(error))).finally(() => setBusy(false))
+        void remove(workspaceId, deleting.id, deleting.version).then(() => { updated(roles.filter(role =>
+          role.id !== deleting.id)); setDeleting(null) }, error => setError(error instanceof Error ? error.message :
+          String(error))).finally(() => setBusy(false))
       }}>{busy ? 'Deleting…' : 'Delete role'}</Button></>}>
       {error && <p role="alert" style={{ color: '#dc4545' }}>{error}</p>}
     </Modal>}

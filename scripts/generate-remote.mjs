@@ -1,7 +1,12 @@
+/**
+ * FILE: plugin/scripts/generate-remote.mjs
+ * DESCRIPTION: Stage server sources and declarations for the official DSH Remote generator
+ */
 import { cp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { createRequire } from 'node:module'
+import ts from 'typescript'
 import { WorkspaceTypertGenerator } from '@deepseek-ai/dsh-typert-generator'
 
 // DSH's generator consumes a packages/ workspace. Stage only this package's
@@ -9,28 +14,48 @@ import { WorkspaceTypertGenerator } from '@deepseek-ai/dsh-typert-generator'
 const root = fileURLToPath(new URL('..', import.meta.url))
 const workspace = join(root, '.build', 'typert')
 const packageRoot = join(workspace, 'packages', 'aicraft')
-const protocolRoot = join(workspace, 'packages', 'protocol')
 await mkdir(join(root, 'lib', 'types'), { recursive: true })
-for (const file of ['index.d.ts', 'project-watch.d.ts', 'task-state.d.ts', 'materials.d.ts', 'artifact-files.d.ts', 'accounting.d.ts', 'pricing.d.ts', 'statistics.d.ts', 'settings.d.ts', 'process-templates.d.ts', 'project.d.ts', 'schemas.d.ts', 'tools.d.ts', 'runs.d.ts', 'types.d.ts', 'types.js']) {
-  await cp(join(root, '.build', 'host', file), join(root, 'lib', 'types', file))
+// Preserve the declaration tree and the runtime compatibility type exports.
+for (const file of await readdir(join(root, '.build', 'host'), { recursive: true })) {
+  if (!file.endsWith('.d.ts') && !file.endsWith('types.js')) continue
+  const target = join(root, 'lib', 'types', file)
+  await mkdir(dirname(target), { recursive: true })
+  await cp(join(root, '.build', 'host', file), target)
 }
 await rm(workspace, { recursive: true, force: true })
 await mkdir(join(packageRoot, 'src'), { recursive: true })
 await symlink(join(root, 'node_modules'), join(workspace, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
-// The generator identifies framework symbols through workspace membership.
-// Use the installed protocol declarations as an analysis-only workspace leaf.
+// Keep framework declarations outside the analyzed package face. Flatten the
+// installed declaration modules into an ambient module so the official analyzer
+// recognizes framework symbols without owning DSH-wide declaration merges.
 const require = createRequire(import.meta.url)
 const protocol = dirname(require.resolve('@deepseek-ai/dsh-typert-protocol/package.json'))
-await mkdir(join(protocolRoot, 'src'), { recursive: true })
-for (const file of await readdir(join(protocol, 'lib', 'types'))) {
-  if (file.endsWith('.d.ts')) await cp(join(protocol, 'lib', 'types', file), join(protocolRoot, 'src', file.replace(/\.d\.ts$/, '.ts')))
+const declarations = []
+for (const file of (await readdir(join(protocol, 'lib', 'types'))).filter(file => file.endsWith('.d.ts')).sort()) {
+  const text = await readFile(join(protocol, 'lib', 'types', file), 'utf8')
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true)
+  const statements = source.statements.filter((statement) => {
+    if (!ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) return true
+    if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) return true
+    if (!statement.moduleSpecifier.text.startsWith('.')) return true
+    const bindings = ts.isImportDeclaration(statement) ? statement.importClause?.namedBindings : statement.exportClause
+    if ((ts.isImportDeclaration(statement) && statement.importClause?.name)
+      || (bindings && (ts.isNamespaceImport(bindings) || ts.isNamespaceExport(bindings)
+        || bindings.elements?.some(element => element.propertyName && element.propertyName.text !== element.name.text)))) {
+      throw new Error(`Protocol declarations contain unsupported relative bindings: ${file}`)
+    }
+    return false
+  })
+  declarations.push(statements.map(statement => statement.getFullText(source)).join('\n'))
 }
-await writeFile(join(protocolRoot, 'package.json'), JSON.stringify({
-  name: '@deepseek-ai/dsh-typert-protocol', type: 'module',
-  exports: { '.': { types: './lib/types/index.d.ts', default: './lib/index.js' } },
-}))
-for (const file of ['index.ts', 'project-watch.ts', 'task-state.ts', 'materials.ts', 'artifact-files.ts', 'accounting.ts', 'pricing.ts', 'statistics.ts', 'settings.ts', 'process-templates.ts', 'project.ts', 'schemas.ts', 'tools.ts', 'runs.ts', 'types.ts']) {
-  await cp(join(root, 'src', file), join(packageRoot, 'src', file))
+await writeFile(join(workspace, 'protocol.d.ts'),
+  `declare module '@deepseek-ai/dsh-typert-protocol' {\n${declarations.join('\n')}\n}\n`)
+// Stage every server source, including module-owned types and schemas.
+for (const file of await readdir(join(root, 'src'), { recursive: true })) {
+  if (!file.endsWith('.ts') || file.startsWith(`client${process.platform === 'win32' ? '\\' : '/'}`)) continue
+  const target = join(packageRoot, 'src', file)
+  await mkdir(dirname(target), { recursive: true })
+  await cp(join(root, 'src', file), target)
 }
 const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 delete manifest.exports['./client']
@@ -38,10 +63,11 @@ delete manifest.dsh.client
 await writeFile(join(packageRoot, 'package.json'), JSON.stringify(manifest))
 const config = JSON.parse(await readFile(join(root, 'tsconfig.json'), 'utf8'))
 config.include = ['src/**/*.ts']
-config.compilerOptions.paths = { '@deepseek-ai/dsh-typert-protocol': ['../protocol/src/index.ts'] }
+config.compilerOptions.paths = { '@deepseek-ai/dsh-typert-protocol': ['../../protocol.d.ts'] }
 await writeFile(join(packageRoot, 'tsconfig.json'), JSON.stringify(config))
-await writeFile(join(protocolRoot, 'tsconfig.json'), JSON.stringify({ ...config, compilerOptions: { ...config.compilerOptions, paths: {} } }))
-await writeFile(join(workspace, 'tsconfig.host.json'), JSON.stringify({ extends: './packages/aicraft/tsconfig.json', include: [], files: [], references: [{ path: './packages/aicraft' }, { path: './packages/protocol' }] }))
+await writeFile(join(workspace, 'tsconfig.host.json'), JSON.stringify({
+  extends: './packages/aicraft/tsconfig.json', include: [], files: [], references: [{ path: './packages/aicraft' }],
+}))
 const artifacts = new WorkspaceTypertGenerator(workspace).generate(['dsh-aicraft'], ['host'])
 const host = artifacts.find(artifact => artifact.face === 'host')
 if (!host?.remote) throw new Error('AICraft Remote descriptors were not generated')

@@ -1,0 +1,73 @@
+/**
+ * FILE: plugin/src/client/locale.ts
+ * DESCRIPTION: Define panel translations and their locale keys
+ */
+import { AMBIGUOUS_TASKS_MESSAGE } from '../task-management/types.ts'
+
+export const en = {
+  panel: 'AICraft',
+  subtitle: 'Manage your project tasks with a team of AI agents.',
+  project: 'Project',
+  projectPath: 'Project path',
+  chooseProject: 'Select a DSH project',
+  noTask: 'This project has no open task.',
+  loadingTask: 'Reading current state',
+  loadFailed: 'Could not read the project. Try again.',
+  ambiguous: AMBIGUOUS_TASKS_MESSAGE,
+  invalid: 'Task state is invalid. Correct the project files and refresh.',
+  task: 'Current task', taskPicker: 'Task', chooseTask: 'Select a task', openTask: 'Open',
+  process: 'Process',
+  step: 'Step',
+  editor: 'Editor', preview: 'Preview', editorMode: 'Document mode', save: 'Save', saved: 'Saved', reload: 'Reload', readOnly: 'Read only', closeMaterial: 'Close artifact', materialWindow: 'Artifact', markdownSource: 'Markdown source', discardClosePrompt: 'Discard unsaved changes and close?', discardReloadPrompt: 'Reload the file and discard your changes?', discardChanges: 'Discard changes', keepEditing: 'Keep editing',
+  settings: 'Project settings', currentTaskSection: 'Current task', backToCurrentTask: 'Back to current task', createFirstTask: 'Create first task',
+  stages: 'Steps', materials: 'Artifacts', views: 'Project views', stageMaterials: 'Step artifacts', deleteStepMaterials: 'Delete step artifacts', backMaterials: 'Back to artifacts', allMaterials: 'All artifacts', noMaterials: 'No artifacts yet.', loadingMaterials: 'Reading artifacts…', loadingDocument: 'Reading document…', copy: 'Copy', copied: 'Copied', footnotes: 'Footnotes', retry: 'Retry',
+  role: 'Role', modelColumn: 'Model', stepActions: 'Actions for {step}',
+  stepStatus: 'Status',
+  pending: 'Pending',
+  running: 'In progress',
+  completed: 'Completed', skipped: 'Skipped', cancelled: 'Cancelled', currentStage: 'Current',
+  refresh: 'Refresh task',
+  branch: 'Current branch', createdBranch: 'Branch for task',
+  prepare: 'Prepare AICraft project', initProject: 'Init new AICraft project',
+  preparing: 'Preparing project…',
+  create: 'Create task',
+  creating: 'Creating task…',
+  title: 'Task title',
+  requirements: 'Requirements and acceptance criteria',
+  creationBlocked: 'Task creation is unavailable',
+  actions: 'Actions',
+  goToStep: 'Go to this step', returnTo: 'Return to...', returnStep: 'Return to step', returnTarget: 'Step',
+  setStepModel: 'Set step model', showStepPrompt: 'Input prompt', runStep: 'Run', runStepWithModel: 'Run with model', chooseModel: 'Select a model', loadingModels: 'Loading models…', cancel: 'Cancel', close: 'Close',
+  completeStep: 'Complete', skipStep: 'Skip',
+  closeTask: 'Finish task', reopenTask: 'Reopen Task', finishPrompt: 'Finish this task? It will be marked as completed. Artifacts and chat history will be kept.',
+  savedModelHint: 'Saves the model for future runs of this step in this task.', runModelHint: 'Uses the selected model for this run only. The saved step model stays unchanged.',
+  saving: 'Saving…',
+  model: 'Executor model', stopGenerating: 'Stop generating', archiveChat: 'Archive chat', stopPrompt: 'Stop generation in this chat?', archivePrompt: 'Archive this chat? Any active generation will be stopped. The chat will disappear from AICraft.',
+  showMoreChats: 'Show more chats', runHistory: 'Run history', openRun: 'Open executor chat', starting: 'Starting', interrupted: 'Interrupted', runFailed: 'Failed', results: 'Results',
+}
+export const zh: typeof en = {
+  panel: 'AICraft',
+  subtitle: '与 AI 智能体团队协作处理项目任务。',
+  project: '项目', projectPath: '项目路径', chooseProject: '选择 DSH 项目', noTask: '此项目没有未关闭的任务。',
+  loadingTask: '正在读取任务状态…', loadFailed: '无法读取项目，请重试。',
+  ambiguous: '每个分支最多只能有一个未关闭的任务。当前：',
+  invalid: '任务状态无效，请修正项目文件后刷新。', task: '当前任务', taskPicker: '任务', chooseTask: '选择任务', openTask: '未关闭',
+  editor: '编辑', preview: '预览', editorMode: '文档模式', save: '保存', saved: '已保存', reload: '重新加载', readOnly: '只读', closeMaterial: '关闭产物', materialWindow: '产物', markdownSource: 'Markdown 源码', discardClosePrompt: '放弃未保存更改并关闭？', discardReloadPrompt: '重新加载并放弃更改？', discardChanges: '放弃更改', keepEditing: '继续编辑',
+  settings: '项目设置', currentTaskSection: '当前任务', backToCurrentTask: '返回当前任务', createFirstTask: '创建首个任务',
+  stages: '步骤', materials: '产物', views: '项目视图', stageMaterials: '步骤产物', deleteStepMaterials: '删除步骤产物', backMaterials: '返回产物', allMaterials: '全部产物', noMaterials: '暂无文档。', loadingMaterials: '正在读取产物…', loadingDocument: '正在读取文档…', copy: '复制', copied: '已复制', footnotes: '脚注', retry: '重试',
+  process: '流程', step: '步骤', role: '角色', modelColumn: '模型', stepActions: '{step}的操作', stepStatus: '状态',
+  setStepModel: '设置步骤模型', showStepPrompt: '输入提示词', runStep: '执行', runStepWithModel: '选择模型执行', chooseModel: '选择模型', loadingModels: '正在加载模型…', cancel: '取消', close: '关闭',
+  pending: '待处理', running: '进行中', completed: '已完成', skipped: '已跳过', cancelled: '已取消', currentStage: '当前', refresh: '刷新任务',
+  branch: '当前分支', createdBranch: '创建分支', prepare: '准备 AICraft 项目', initProject: '初始化 AICraft 项目', preparing: '正在准备项目…',
+  create: '创建任务', creating: '正在创建任务…', title: '任务标题',
+  requirements: '需求和验收条件', creationBlocked: '无法创建任务',
+  actions: '操作', goToStep: '转到此步骤', returnTo: '返回到…', returnStep: '返回步骤', returnTarget: '步骤', completeStep: '完成', skipStep: '跳过', closeTask: '结束任务', reopenTask: '重新打开任务', finishPrompt: '结束此任务？任务将标记为已完成，产物和聊天记录将保留。', savedModelHint: '保存此任务中该步骤后续执行使用的模型。', runModelHint: '仅本次执行使用所选模型，不更改已保存的步骤模型。', saving: '正在保存…',
+  model: '执行器模型', stopGenerating: '停止生成', archiveChat: '归档聊天', stopPrompt: '停止此聊天中的生成？', archivePrompt: '归档此聊天？正在生成的内容将停止，聊天将从 AICraft 中隐藏。',
+  showMoreChats: '显示更多聊天', runHistory: '执行记录', openRun: '打开执行器聊天', starting: '启动中', interrupted: '已中断', runFailed: '失败', results: '结果',
+}
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** AICraft panel interface copy. */
+    aicraft: keyof typeof en
+  }
+}

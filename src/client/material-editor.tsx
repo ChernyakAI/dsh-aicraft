@@ -1,8 +1,12 @@
-import { createRoot } from 'react-dom/client'
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { DockController, FloatLayer, type DockIntents, type DockLabels, type TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
-import { Button, MarkdownText, SegmentedControl, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+/**
+ * FILE: plugin/src/client/material-editor.tsx
+ * DESCRIPTION: Keep independent document drafts and floating editors
+ */
+import { DockController,FloatLayer,type DockIntents,type DockLabels,type TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
+import { Button,MarkdownText,Modal,SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import { useEffect,useId,useMemo,useRef,useState,useSyncExternalStore,type ReactNode } from 'react'
+import { createRoot } from 'react-dom/client'
 import type { MaterialDocument } from '../types.ts'
 
 export interface MaterialEditorApi {
@@ -13,14 +17,25 @@ export interface MaterialEditorApi {
   saved(workspaceId: string, path: string): void
 }
 interface Entry {
-  workspaceId: string; workspaceTitle: string; path: string; preview?: MaterialDocument; dirty: boolean; saving: boolean; confirmClose: boolean
+  workspaceId: string
+  workspaceTitle: string
+  path: string
+  preview?: MaterialDocument
+  dirty: boolean
+  saving: boolean
+  confirmClose: boolean
   status(dirty: boolean, saving: boolean): void
   close(): void
   keep(): void
 }
-
-/** DSH's own floating layout, independent of a chat or the selected project. */
-export function mountMaterialEditors(api: MaterialEditorApi): { open(workspaceId: string, workspaceTitle: string, path: string, preview?: MaterialDocument): void; dispose(): void } {
+/**
+ * START_METHOD_mountMaterialEditors
+ * DSH's own floating layout, independent of a chat or the selected project.
+ */
+export function mountMaterialEditors(api: MaterialEditorApi): {
+  open(workspaceId: string, workspaceTitle: string, path:
+  string, preview?: MaterialDocument): void
+  dispose(): void } {
   const controller = new DockController()
   const entries = new Map<TabId, Entry>()
   const listeners = new Set<() => void>()
@@ -37,10 +52,11 @@ export function mountMaterialEditors(api: MaterialEditorApi): { open(workspaceId
   }
   const intents: DockIntents = {
     focusTab: id => controller.focusTab(id), focusPane: id => controller.focusPane(id),
-    splitPane: id => { controller.splitPane(id) }, addTab: id => { controller.addTab(id) },
-    closeTab: requestClose, duplicateTab: id => { controller.duplicateTab(id) },
-    floatTab: (id, rect) => { controller.floatTab(id, rect) }, unfloatPane: id => { controller.unfloatPane(id) },
-    placeTab: (id, pane, index) => { controller.placeTab(id, pane, index) }, dropTab: (id, pane, zone) => { controller.dropTab(id, pane, zone) },
+    splitPane: (id) => { controller.splitPane(id) }, addTab: (id) => { controller.addTab(id) },
+    closeTab: requestClose, duplicateTab: (id) => { controller.duplicateTab(id) },
+    floatTab: (id, rect) => { controller.floatTab(id, rect) }, unfloatPane: (id) => { controller.unfloatPane(id) },
+    placeTab: (id, pane, index) => { controller.placeTab(id, pane, index) }, dropTab: (id, pane, zone) => {
+      controller.dropTab(id, pane, zone) },
     moveFloat: (id, x, y) => controller.moveFloat(id, x, y), resizeFloat: (id, rect) => controller.resizeFloat(id, rect),
     resizeSplit: (id, sizes) => controller.resizeSplit(id, sizes),
   }
@@ -58,7 +74,8 @@ export function mountMaterialEditors(api: MaterialEditorApi): { open(workspaceId
       <style>{'.aicraft-editor-windows [data-dockkit-float-dock] { display: none; }'}</style>
       <FloatLayer state={state} intents={intents} labels={labels} canCloseTab={id => !entries.get(id)?.saving}
         renderTabTitle={tab => <span>{tab.title}{entries.get(tab.id)?.dirty ? ' *' : ''}</span>}
-        renderTab={tab => { const entry = entries.get(tab.id); return entry ? <MaterialEditor key={tab.id} entry={entry} api={api} /> : null }} />
+        renderTab={(tab) => { const entry = entries.get(tab.id); return entry ? <MaterialEditor key={tab.id} entry={
+          entry} api={api} /> : null }} />
     </>
   }
   root.render(<Layer />)
@@ -88,11 +105,18 @@ export function mountMaterialEditors(api: MaterialEditorApi): { open(workspaceId
     dispose() { window.removeEventListener('beforeunload', unload); root.unmount(); element.remove(); entries.clear() },
   }
 }
+// END_METHOD_mountMaterialEditors
 
 /** The task request uses the same versioned Markdown editor in a modal. */
 export function TaskRequestDialog({ workspaceId, workspaceTitle, taskId, taskTitle, t, load, save, close }: {
-  workspaceId: string; workspaceTitle: string; taskId: string; taskTitle: string
-  t: MaterialEditorApi['t']; load: MaterialEditorApi['load']; save: MaterialEditorApi['save']; close(): void
+  workspaceId: string
+  workspaceTitle: string
+  taskId: string
+  taskTitle: string
+  t: MaterialEditorApi['t']
+  load: MaterialEditorApi['load']
+  save: MaterialEditorApi['save']
+  close(): void
 }): ReactNode {
   const [, setRevision] = useState(0)
   const [confirmClose, setConfirmClose] = useState(false)
@@ -161,9 +185,9 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
   useEffect(() => {
     const controller = new AbortController(); abort.current = controller
     setDocument(null); setError(''); setSaved(false); entry.status(false, false)
-    void (entry.preview ? Promise.resolve(entry.preview) : api.load(entry.workspaceId, entry.path, controller.signal)).then(value => {
+    void (entry.preview ? Promise.resolve(entry.preview) : api.load(entry.workspaceId, entry.path, controller.signal)).then((value) => {
       if (!controller.signal.aborted) { setDocument(value); setDraft(value.text) }
-    }, error => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : String(error)) })
+    }, (error) => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : String(error)) })
     return () => controller.abort()
   }, [entry, api, revision])
   const reload = () => { setConfirmReload(false); setRevision(value => value + 1) }
@@ -195,7 +219,7 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
       if (!signal.aborted) { setError(error instanceof Error ? error.message : String(error)); entry.status(dirty, false) }
     } finally { if (!signal.aborted) setSaving(false) }
   }
-  return <section aria-label={`${t('materialWindow')}: ${entry.workspaceTitle} — ${entry.path}`} onKeyDown={event => { if (editable && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); event.stopPropagation(); void save() } }} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, padding: 16, boxSizing: 'border-box' }}>
+  return <section aria-label={`${t('materialWindow')}: ${entry.workspaceTitle} — ${entry.path}`} onKeyDown={(event) => { if (editable && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); event.stopPropagation(); void save() } }} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, padding: 16, boxSizing: 'border-box' }}>
     <p title={entry.path} style={{ margin: '0 0 12px', fontSize: 12, opacity: 0.65, overflowWrap: 'anywhere' }}>{entry.path}</p>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
       {markdown ? <>
@@ -216,20 +240,21 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
     </Modal>}
     {(entry.confirmClose || confirmReload) && <div role="alert" style={{ padding: 10, marginBottom: 12, border: '1px solid #8090a050', borderRadius: 7 }}>
       <p style={{ margin: '0 0 8px' }}>{entry.confirmClose ? 'Save changes before closing?' : t('discardReloadPrompt')}</p>
-      {entry.confirmClose && editable && <Button variant="outline" disabled={saving || !dirty} onClick={() => { void save().then(ok => { if (ok) entry.close() }) }}>Save and close</Button>}
+      {entry.confirmClose && editable && <Button variant="outline" disabled={saving || !dirty} onClick={() => { void save().then((ok) => { if (ok) entry.close() }) }}>Save and close</Button>}
       <Button variant="outline" disabled={saving} onClick={() => { if (entry.confirmClose) entry.close(); else reload() }}>{t('discardChanges')}</Button>
       <Button variant="ghost" disabled={saving} onClick={() => { entry.keep(); setConfirmReload(false) }}>{t('keepEditing')}</Button>
     </div>}
     {error && <p role="alert" style={{ color: '#dc4545', margin: '0 0 12px' }}>{error}</p>}
     <div id={markdown ? `${modeId}-${mode}-panel` : undefined} role={markdown ? 'tabpanel' : undefined} aria-labelledby={markdown ? `${modeId}-${mode}` : undefined} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-    {document === null ? !error && <p role="status">{t('loadingDocument')}</p>
-      : markdown && mode === 'edit' ? <textarea autoFocus aria-label={t('markdownSource')} value={draft} readOnly={!editable} disabled={saving} spellCheck={false}
-        onChange={event => { if (!editable) return; const text = event.target.value; setDraft(text); setSaved(false); entry.status(text !== document.text, saving) }}
-        style={{ flex: 1, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'none', padding: 12, border: '1px solid #8090a040', borderRadius: 7, background: 'transparent', color: 'inherit', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }} />
-      : <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {document.format === 'markdown' ? <MarkdownText text={editable ? draft : document.text} labels={labels} />
-          : <pre style={{ margin: 0, padding: 12, fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{document.text}</pre>}
-      </div>}
+      {document === null ? !error && <p role="status">{t('loadingDocument')}</p>
+        : markdown && mode === 'edit' ? <textarea autoFocus aria-label={t('markdownSource')} value={draft} readOnly={!editable} disabled={saving} spellCheck={false}
+          onChange={(event) => { if (!editable) return; const text = event.target.value; setDraft(text); setSaved(false)
+            entry.status(text !== document.text, saving) }}
+          style={{ flex: 1, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'none', padding: 12, border: '1px solid #8090a040', borderRadius: 7, background: 'transparent', color: 'inherit', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }} />
+          : <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+            {document.format === 'markdown' ? <MarkdownText text={editable ? draft : document.text} labels={labels} />
+              : <pre style={{ margin: 0, padding: 12, fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{document.text}</pre>}
+          </div>}
     </div>
   </section>
 }
