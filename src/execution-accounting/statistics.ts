@@ -6,11 +6,9 @@ import { diagnosticPublication, diagnosticOperation, diagnosticRejection } from 
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
-import { brandString } from '@deepseek-ai/dsh-brand'
 import type { FsVersion } from '@deepseek-ai/dsh-fs'
 import type { } from '@deepseek-ai/dsh-session-projection'
 import type { } from '@deepseek-ai/dsh-session-query'
-import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { } from '@deepseek-ai/dsh-subagent'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -18,22 +16,24 @@ import { readRuns } from '../step-execution/history.ts'
 import { readTaskState } from '../task-management/queries.ts'
 import type { ExecutionStatistics,StatisticsBucket } from '../types.ts'
 import { readMaterial,targetFor } from '../work-materials/materials.ts'
-import { accountingProjection,accountingSchema,addTotals,intervalUnion,record,zeroTotals,type AccountingState } from './accounting.ts'
+import { accountingProjection,addTotals,intervalUnion,record,zeroTotals } from './accounting.ts'
 
 const trackingSchema=z.object({ version:z.literal(1),sessions:z.array(z.object({ id:z.string(),children:z.array(z.object({
   id:z.string(),local:z.boolean(),provider:z.string() })) })) })
 type Tracking = z.infer<typeof trackingSchema>
 
-interface StatisticsPacket { state: AccountingState; stats: Record<string,unknown>; catalog: unknown; live: boolean }
+import { SessionSource, type CachedPacket } from './session-source.ts'
 
 /** Host-owned persisted folds and bounded query admission, independent of panel rendering. */
 export class StatisticsController {
   private readonly attached=new WeakSet<Agent>()
   private readonly detach=new WeakMap<Agent,()=>void|Promise<void>>()
-  private readonly packets=new Map<string,{ owner:object|symbol;revision:string|number;packet:StatisticsPacket }>()
+  private readonly packets=new Map<string,CachedPacket>()
+  private readonly source:SessionSource
   private readers=0
   private readonly waiting:Array<()=>void>=[]
   constructor(private readonly ctx:Context,private readonly lockWaitMs=10000){
+    this.source=new SessionSource(ctx)
     ctx.effect(()=>ctx.sessionProjections.register(accountingProjection),'aicraft: persisted accounting')
     ctx.on('agent/disposed',({ agent })=>{
       const stop=this.detach.get(agent);this.detach.delete(agent)
@@ -98,7 +98,7 @@ export class StatisticsController {
 
   /**
    * START_METHOD_StatisticsController.read
-   * Validate the requested root against the saved task; archived/failed runs remain in task totals.
+   * Validate the requested root; retain saved descendants even when their parent packet is unavailable.
    */
   async read(cwd:string,taskId:string,sessionId:string|null,signal:AbortSignal):Promise<ExecutionStatistics>{
     return diagnosticOperation({ path: 'src/execution-accounting/statistics.ts', method: 'StatisticsController.read' }, { projectPath: cwd, taskId: taskId, sessionId: sessionId }, async () => {
@@ -121,28 +121,34 @@ export class StatisticsController {
         const id=stack.pop()!
         if(visited.has(id))continue
         visited.add(id)
-        let packet:Awaited<ReturnType<StatisticsController['observe']>>
-        try{packet=await this.observe(id,signal)}catch(error){if(signal.aborted)throw error;missing('Some session statistics are unavailable.');continue}
-        if(!packet){missing('Some session statistics are unavailable.');continue}
-        const { state,stats,catalog,live }=packet;sessions++;totals=addTotals(totals,state.totals)
-        for(const bucket of state.buckets){
-          const key=JSON.stringify([bucket.provider,bucket.model,bucket.period]),previous=buckets.get(key)
-          buckets.set(key,{ ...bucket,totals:previous?addTotals(previous.totals,bucket.totals):bucket.totals })
-        }
+        let packet:Awaited<ReturnType<StatisticsController['observe']>>=null
+        try{packet=await this.observe(cwd,id,signal)}catch(error){if(signal.aborted)throw error}
         const saved=tracking.sessions.find(item=>item.id===id)
-        if(!state.tracked&&!saved)missing('Earlier subagent usage may be missing.')
-        if(trackingUnavailable)missing('Delegation accounting metadata is unavailable.')
-        if(state.attempt||state.openSince!==null)running=true
-        if(rootSet.has(id)){
-          intervals.push(...state.intervals)
-          if(state.openSince!==null&&live)intervals.push([state.openSince,Date.now()])
-          if(typeof stats.llmMs==='number'&&typeof stats.toolMs==='number'){llmMs+=stats.llmMs;toolMs+=stats.toolMs}
-          else incomplete.add('Some timing data is unavailable.')
-        }
         const children=new Map<string,{ local:boolean }>()
-        for(const child of [...state.children,...(saved?.children??[])])children.set(child.id,{ local:child.local })
-        if(!Array.isArray(catalog))missing('Subagent discovery is unavailable.')
-        else for(const value of catalog){const child=record(value);if(typeof child.id==='string'&&!children.has(child.id))children.set(child.id,{ local:true })}
+        if(!packet)missing('Some session statistics are unavailable.')
+        else{
+          const { state,stats,live }=packet;sessions++;totals=addTotals(totals,state.totals)
+          for(const bucket of state.buckets){
+            const key=JSON.stringify([bucket.provider,bucket.model,bucket.period]),previous=buckets.get(key)
+            buckets.set(key,{ ...bucket,totals:previous?addTotals(previous.totals,bucket.totals):bucket.totals })
+          }
+          if(!state.tracked&&!saved)missing('Earlier subagent usage may be missing.')
+          if(trackingUnavailable)missing('Delegation accounting metadata is unavailable.')
+          if(state.attempt||state.openSince!==null)running=true
+          if(rootSet.has(id)){
+            intervals.push(...state.intervals)
+            if(state.openSince!==null&&live)intervals.push([state.openSince,Date.now()])
+            if(typeof stats.llmMs==='number'&&typeof stats.toolMs==='number'){llmMs+=stats.llmMs;toolMs+=stats.toolMs}
+            else incomplete.add('Some timing data is unavailable.')
+          }
+          for(const child of state.children)children.set(child.id,{ local:child.local })
+        }
+        // DATA-7 links remain available independently of the parent's projection and metrics.
+        for(const child of saved?.children??[])children.set(child.id,{ local:child.local })
+        if(packet){
+          if(!Array.isArray(packet.catalog))missing('Subagent discovery is unavailable.')
+          else for(const value of packet.catalog){const child=record(value);if(typeof child.id==='string'&&!children.has(child.id))children.set(child.id,{ local:true })}
+        }
         for(const [child,info]of children){
           if(info.local)stack.push(child)
           else missing('External subagent usage is unavailable.')
@@ -157,31 +163,22 @@ export class StatisticsController {
   }
   // END_METHOD_StatisticsController.read
 
-  private async observe(id:string,signal:AbortSignal){
+  /** Keep one bounded LRU of completed folds; source validation never globally resolves a direct file. */
+  private async observe(cwd:string,id:string,signal:AbortSignal){
     if(this.readers>=2)await new Promise<void>(resolve=>this.waiting.push(resolve))
     else this.readers++
+    const key=JSON.stringify([cwd,id])
     try{
       signal.throwIfAborted()
-      const sessionId=brandString<SessionId>(id),sessions=this.ctx.get('sessions'),storage=this.ctx.get('sessionPersistence')
-      const live=sessions?.get(sessionId)
-      const stamp=live?{ owner:live,revision:live.seq }:storage?{ owner:storage.identity,revision:
-        (await storage.stat(sessionId,{ signal }))?.revision }:null
-      const cached=this.packets.get(id)
-      if(stamp&&stamp.revision!==undefined&&cached?.owner===stamp.owner&&cached.revision===stamp.revision){
-        this.packets.delete(id);this.packets.set(id,cached);return cached.packet
-      }
-      using observation=await this.ctx.sessionQuery.observeSession(sessionId,{ signal })
-      const values=record(observation.projections?.values)
-      const parsed=accountingSchema.safeParse(values.aicraftAccounting)
-      if(!parsed.success)return null
-      const packet={ state:parsed.data,stats:record(values.sessionStats),catalog:values.subagentCatalog,live:observation.source==='live' }
-      const current=sessions?.get(sessionId)
-      const key=observation.source==='live'&&current&&current.seq===observation.cursor+1?{ owner:current,revision:current.seq }:observation.source==='prepared'&&storage&&observation.revision?{ owner:storage.identity,revision:observation.revision }:null
-      if(key){
-        this.packets.delete(id);this.packets.set(id,{ ...key,packet })
+      const result=await this.source.read(cwd,id,signal,this.packets.get(key))
+      signal.throwIfAborted()
+      this.packets.delete(key)
+      if(result.packet&&result.stamp){
+        this.packets.set(key,{ stamp:result.stamp,packet:result.packet })
         if(this.packets.size>128)this.packets.delete(this.packets.keys().next().value!)
       }
-      return packet
-    }finally{const next=this.waiting.shift();if(next)next();else this.readers--}
+      return result.packet
+    }catch(error){this.packets.delete(key);throw error}
+    finally{const next=this.waiting.shift();if(next)next();else this.readers--}
   }
 }

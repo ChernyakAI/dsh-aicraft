@@ -12,6 +12,9 @@ import type { MaterialDocument } from '../types.ts'
 export interface MaterialEditorApi {
   t: PropsLocale<'aicraft'>['t']
   load(workspaceId: string, path: string, signal: AbortSignal): Promise<MaterialDocument>
+  /**
+   * Editor save port supplied by PanelFace.saveMaterial.
+   */
   save(workspaceId: string, path: string, text: string, version: string, signal: AbortSignal): Promise<MaterialDocument>
   resetPrompt?(workspaceId: string, taskId: string, stepId: string, version: string, signal: AbortSignal): Promise<MaterialDocument>
   saved(workspaceId: string, path: string): void
@@ -191,6 +194,9 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
     return () => controller.abort()
   }, [entry, api, revision])
   const reload = () => { setConfirmReload(false); setRevision(value => value + 1) }
+  /**
+   * Submit this editor's draft through the injected MaterialEditorApi.save port.
+   */
   const save = async (): Promise<boolean> => {
     if (!document || !dirty || confirmReset || saving || !editable) return false
     const signal = abort.current!.signal

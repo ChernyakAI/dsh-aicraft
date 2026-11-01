@@ -2,7 +2,7 @@
  * FILE: plugin/src/task-management/commands.ts
  * DESCRIPTION: Apply explicit task creation and lifecycle commands
  */
-import { diagnosticAccepted, diagnosticOperation, diagnosticPublication, diagnosticRejection } from '../dsh-integration/diagnostics.ts'
+import { diagnosticAccepted, diagnosticEvent, diagnosticOperation, diagnosticPublication, diagnosticRejection } from '../dsh-integration/diagnostics.ts'
 import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import type Subprocess from '@deepseek-ai/dsh-subprocess'
@@ -20,7 +20,8 @@ import { targetFor } from '../work-materials/artifact-files.ts'
 import { readTaskState } from './queries.ts'
 import { requestSchema } from './schemas.ts'
 import { currentStepOf,serializeState } from './state.ts'
-import type { CreateTaskRequest } from './types.ts'
+import { TaskCreationRefusal } from './creation-result.ts'
+import type { CreateTaskRequest,TaskCreationConfirmation } from './types.ts'
 
 /**
  * START_METHOD_createTask
@@ -31,7 +32,7 @@ import type { CreateTaskRequest } from './types.ts'
  * @param request - Developer requirements and selected process.
  * @param config - Operation limits.
  * @param signal - Caller cancellation.
- * @returns Updated project with its single open task.
+ * @returns Confirmation of the published task, without a second read.
  */
 export async function createTask(
   fs: FileSystem,
@@ -41,39 +42,74 @@ export async function createTask(
   config: ProjectConfig,
   signal: AbortSignal,
   readProject: ProjectReader,
-): Promise<ProjectView> {
+): Promise<TaskCreationConfirmation> {
   return diagnosticOperation({ path: 'src/task-management/commands.ts', method: 'createTask' }, { projectPath: cwd }, async () => {
-    const input = requestSchema.parse(request)
-    return withFileLock(join(cwd, '.aicraft'), async () => {
-      signal.throwIfAborted()
-      const id = input.taskIdentifier
-      const destination = await targetFor(fs, cwd, `.aicraft/tasks/${id}`, signal)
-      if (await fs.lstat(`.aicraft/tasks/${id}`, { cwd }, signal)) throw diagnosticRejection(new Error(`Task directory "${id}" already exists. Choose another Task ID.`))
-      const before = await readProject(fs, subprocess, cwd, config, signal)
-      if (before.creationIssue) throw diagnosticRejection(new Error(before.creationIssue))
-      if (!before.processes.some(item => item.id === input.processId)) throw diagnosticRejection(new Error('The selected process does not exist'))
-      const route = await readProcessForTask(fs, cwd, input.processId, signal)
-      diagnosticAccepted({ ...input, taskId: id })
-      const staging = `tasks/.creating-${randomUUID()}`
-      const stagingPath = join(cwd, '.aicraft', staging)
-      try {
-        await createText(fs, cwd, `${staging}/request.md`, `${input.requestText}\n`, signal)
-        for (const step of route.steps) await createText(fs, cwd, `${staging}/${step.id}/.gitkeep`, '', signal)
-        await createText(fs, cwd, `${staging}/process.json`, JSON.stringify(route, null, 2) + '\n', signal)
-        await createText(fs, cwd, `${staging}/state.json`, serializeState({
-          taskType: input.processId, taskIdentifier: id, taskTitle: input.title, status: 'open',
-          ...(before.branch ? { createdBranch: before.branch } : {}),
-          stepStates: route.steps.map((step, index) => ({ id: step.id, status: index === 0 ? 'current' : 'pending' })),
-        }), signal)
-        signal.throwIfAborted()
-        if (await fs.lstat(`.aicraft/tasks/${id}`, { cwd }, signal)) throw diagnosticRejection(new Error(`Task directory "${id}" already exists. Choose another Task ID.`))
-        await diagnosticPublication(() => rename(stagingPath, fs.processPath(destination)), fs.processPath(destination), 'rename')
-      } catch (error) {
-        await diagnosticPublication(() => rm(stagingPath, { recursive: true, force: true }), stagingPath, 'rm')
-        throw error
+    let operationError: unknown
+    let publicationStarted = false
+    let confirmation: TaskCreationConfirmation | undefined
+    try {
+      const input = requestSchema.parse(request)
+      return await withFileLock(join(cwd, '.aicraft'), async () => {
+        try {
+          signal.throwIfAborted()
+          const id = input.taskIdentifier
+          const destination = await targetFor(fs, cwd, `.aicraft/tasks/${id}`, signal)
+          if (await fs.lstat(`.aicraft/tasks/${id}`, { cwd }, signal)) throw diagnosticRejection(new Error(`Task directory "${id}" already exists. Choose another Task ID.`))
+          const before = await readProject(fs, subprocess, cwd, config, signal)
+          if (before.creationIssue) throw diagnosticRejection(new Error(before.creationIssue))
+          if (!before.processes.some(item => item.id === input.processId)) throw diagnosticRejection(new Error('The selected process does not exist'))
+          const route = await readProcessForTask(fs, cwd, input.processId, signal)
+          diagnosticAccepted({ ...input, taskId: id })
+          const staging = `tasks/.creating-${randomUUID()}`
+          const stagingPath = join(cwd, '.aicraft', staging)
+          const prepared: TaskCreationConfirmation = {
+            taskIdentifier: id, title: input.title,
+            initialState: { status: 'open', stepStates: route.steps.map((step, index) =>
+              ({ id: step.id, status: index === 0 ? 'current' : 'pending' })) },
+          }
+          try {
+            await createText(fs, cwd, `${staging}/request.md`, `${input.requestText}\n`, signal)
+            for (const step of route.steps) await createText(fs, cwd, `${staging}/${step.id}/.gitkeep`, '', signal)
+            await createText(fs, cwd, `${staging}/process.json`, JSON.stringify(route, null, 2) + '\n', signal)
+            await createText(fs, cwd, `${staging}/state.json`, serializeState({
+              taskType: input.processId, taskIdentifier: id, taskTitle: input.title, status: 'open',
+              ...(before.branch ? { createdBranch: before.branch } : {}),
+              stepStates: prepared.initialState.stepStates,
+            }), signal)
+            signal.throwIfAborted()
+            if (await fs.lstat(`.aicraft/tasks/${id}`, { cwd }, signal)) throw diagnosticRejection(new Error(`Task directory "${id}" already exists. Choose another Task ID.`))
+            const publishedPath = fs.processPath(destination)
+            await diagnosticPublication(async () => {
+              publicationStarted = true
+              await rename(stagingPath, publishedPath)
+              confirmation = prepared
+            }, publishedPath, 'rename')
+          } catch (error) {
+            try {
+              await diagnosticPublication(() => rm(stagingPath, { recursive: true, force: true }), stagingPath, 'rm')
+            } catch (cleanupError) {
+              diagnosticEvent('task.creation-cleanup-failed', { error: cleanupError instanceof Error
+                ? { name: cleanupError.name, message: cleanupError.message, stack: cleanupError.stack }
+                : { message: String(cleanupError) } })
+              throw new AggregateError([error, cleanupError], error instanceof Error ? error.message : String(error), { cause: error })
+            }
+            throw error
+          }
+          return prepared
+        } catch (error) { operationError = error; throw error }
+      }, { waitMs: config.lockWaitMs })
+    } catch (error) {
+      if (confirmation) {
+        diagnosticEvent('task.creation-lock-release-failed', { error: error instanceof Error
+          ? { name: error.name, message: error.message, stack: error.stack } : { message: String(error) } })
+        return confirmation
       }
-      return readProject(fs, subprocess, cwd, config, signal)
-    }, { waitMs: config.lockWaitMs })
+      const failure = operationError && operationError !== error
+        ? new AggregateError([operationError, error],
+          operationError instanceof Error ? operationError.message : String(operationError), { cause: operationError }) : error
+      if (!publicationStarted) throw diagnosticRejection(new TaskCreationRefusal(request.taskIdentifier, failure))
+      throw failure
+    }
 
   })
 }

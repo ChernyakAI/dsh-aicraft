@@ -1,5 +1,13 @@
 # Release notes
 
+## Version 0.3.1
+
+- Adds support for **DeepSeek Harness 0.2.1-rc.5**.
+- Fixed panel updates after connection loss.
+- Trying to run an empty assignment now shows an error.
+- The project knowledge list only includes `.md` files saved directly in the knowledge folder. Files in subfolders and links to files are not shown.
+- The built-in reviewer instructions require a full task review, including after fixes.
+
 ## Version 0.2.1
 
 - Adapted the plugin for DeepSeek Harness 0.2.1-rc.3.

@@ -3,7 +3,7 @@
  * DESCRIPTION: Bind the persistent AICraft panel to native DSH services
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { } from '@deepseek-ai/dsh-api-remotes/client'
+import type { ConnectionHandle } from '@deepseek-ai/dsh-api-remotes/client'
 import type { } from '@deepseek-ai/dsh-client-locale/client'
 import type { MainPanelId,PanelInfo } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -35,7 +35,8 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.effect(() => ctx.locale.register('aicraft', { en, zh }), 'aicraft: translations')
   const t = ctx.locale.bind('aicraft')
   const panelId = 'aicraft' as MainPanelId
-  ctx.inject(['remote', 'remote.aicraft', 'remote.session', 'workspaces', 'sidebarRight', 'sidebarRightTabs', 'uiSession', 'uiWorkspace'], (panelCtx) => {
+  ctx.inject(['remote', 'remote.aicraft', 'remote.session', 'connection', 'workspaces', 'sidebarRight', 'sidebarRightTabs', 'uiSession', 'uiWorkspace'], (panelCtx) => {
+    const connection = panelCtx.get('connection') as ConnectionHandle
     const tabId = 'dsh-aicraft'
     panelCtx.effect(() => panelCtx.sidebarRightTabs.register({
       id: tabId, kind: 'aicraft', title: () => t('panel'), keepMounted: true,
@@ -101,6 +102,10 @@ export async function apply(ctx: Context): Promise<void> {
     let closingProject = Promise.resolve()
     let editors: ReturnType<typeof mountMaterialEditors>
     const face: PanelFace = {
+      useConnectionGeneration: () => useSyncExternalStore(
+        connection.generation.subscribe,
+        () => connection.generation.getSnapshot()?.id ?? null,
+      ),
       followProject: async function* (workspaceId, taskId, signal) {
         await closingProject
         if (signal.aborted) return
@@ -142,7 +147,7 @@ export async function apply(ctx: Context): Promise<void> {
       },
       createTask: async (workspaceId, request) => {
         const result = await panelCtx.remote.aicraft.createTask(workspaceId, request)
-        if (!result.ok) throw new Error(result.error.message)
+        if (!result.ok) throw result.error
         return result.value
       },
       goToStep: async (workspaceId, taskId, stepId) => {
@@ -195,6 +200,9 @@ export async function apply(ctx: Context): Promise<void> {
         if (!result.ok) throw new Error(result.error.message)
         return result.value
       },
+      /**
+       * Adapt the generated Remote saveMaterial result for document editors.
+       */
       saveMaterial: async (workspaceId, path, text, version, signal) => {
         const result = await panelCtx.remote.aicraft.saveMaterial(workspaceId, path, text, version, signal)
         if (!result.ok) throw new Error(result.error.message)
@@ -290,6 +298,9 @@ export async function apply(ctx: Context): Promise<void> {
         return result.value
       },
     }
+    /**
+     * Bind MaterialEditorApi.save to the panel's face.saveMaterial port.
+     */
     editors = mountMaterialEditors({ t, load: face.loadMaterial, save: face.saveMaterial,
       resetPrompt: async (workspaceId, taskId, stepId, version, signal) => {
         const result = await panelCtx.remote.aicraft.defaultStepPrompt(workspaceId, taskId, stepId, version, signal)

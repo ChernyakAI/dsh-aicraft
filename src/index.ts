@@ -8,7 +8,7 @@ import type { Config } from './dsh-integration/config.ts'
 import { AicraftService } from './dsh-integration/service.ts'
 export { Config } from './dsh-integration/config.ts'
 export { AicraftService } from './dsh-integration/service.ts'
-export type { CreateTaskRequest,ProcessView,ProjectView,StepView,TaskSnapshot,TaskView } from './types.ts'
+export type { CreateTaskRequest,TaskCreationConfirmation,TaskCreationCheck,ProcessView,ProjectView,StepView,TaskSnapshot,TaskView } from './types.ts'
 
 /** Stable AICraft server plugin name. */
 export const name: string = 'dsh-aicraft'

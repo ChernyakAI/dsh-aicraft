@@ -9,6 +9,7 @@ import { defineTool,type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { } from '@deepseek-ai/dsh-user-approval'
 import { resolve } from 'node:path'
 import type { } from './service.ts'
+import { checkTaskCreation } from './creation-result.ts'
 
 const output = {
   schema: { type: 'string' as const },
@@ -46,10 +47,27 @@ export function registerAgentTools(ctx: Context): void {
     exec.signal.throwIfAborted()
     return JSON.stringify(await call(workspaceId, standing))
   }
+  /** Read the session project or check an exact task after a lost creation response.
+   */
   ctx.tools.register(defineTool({
     name: 'aicraft_project', description: 'Read AICraft state and processes in the current session project.',
-    parameters: {}, output,
-    async execute(_args, exec) { return JSON.stringify(await ctx.aicraft.projectForAgent(workspace(exec), exec.signal)) },
+    parameters: {
+      taskIdentifier: { type: 'string', description: 'Exact Task ID to check after an unknown creation outcome.' },
+      expectedWorkspaceId: { type: 'string', description: 'Original workspace ID, when known; never check a different project.' },
+    }, output,
+    async execute(args, exec) {
+      const workspaceId = workspace(exec)
+      if (!args.taskIdentifier) return JSON.stringify(await ctx.aicraft.projectForAgent(workspaceId, exec.signal))
+      if (args.expectedWorkspaceId && args.expectedWorkspaceId !== workspaceId) return JSON.stringify({ project: null,
+        check: checkTaskCreation(args.expectedWorkspaceId, args.taskIdentifier, null, 'The session project differs from the original workspace') })
+      try {
+        const project = await ctx.aicraft.projectForAgent(workspaceId, exec.signal)
+        return JSON.stringify({ project, check: checkTaskCreation(workspaceId, args.taskIdentifier, project) })
+      } catch (error) {
+        return JSON.stringify({ project: null, check: checkTaskCreation(workspaceId, args.taskIdentifier, null,
+          error instanceof Error ? error.message : String(error)) })
+      }
+    },
   }))
   ctx.tools.register(defineTool({
     name: 'aicraft_prepare_project', description: 'Prepare missing AICraft project files without overwriting existing files.',
@@ -63,15 +81,29 @@ export function registerAgentTools(ctx: Context): void {
       return mutate(exec, 'aicraft_prepare_project', workspaceId => ctx.aicraft.prepare(workspaceId, { template, processId: args.processId, definition: null }, exec.signal))
     },
   }))
+  /** Return a creation outcome independently of the subsequent project read.
+   */
   ctx.tools.register(defineTool({
-    name: 'aicraft_create_task', description: 'Create an AICraft task in the current session project. Git is not required.',
+    name: 'aicraft_create_task', description: 'Create an AICraft task. Returns confirmation only; read aicraft_project separately. Never repeat creation after unknown: check the original Task ID with aicraft_project. Git is not required.',
     parameters: {
       taskIdentifier: { type: 'string', required: true, description: 'User-chosen task directory ID, such as export-report; 1–128 letters, digits, hyphens or underscores, starting with a letter or digit.' },
       title: { type: 'string', required: true, description: 'Task title.' },
       processId: { type: 'string', required: true, description: 'Process ID returned by aicraft_project.' },
       requestText: { type: 'string', required: true, description: 'Requirements and acceptance criteria.' },
     }, output,
-    async execute(args, exec) { return mutate(exec, 'aicraft_create_task', workspaceId => ctx.aicraft.createTask(workspaceId, args, exec.signal)) },
+    async execute(args, exec) {
+      return mutate(exec, 'aicraft_create_task', async (workspaceId) => {
+        try {
+          const confirmation = await ctx.aicraft.createTask(workspaceId, args, exec.signal)
+          return { outcome: 'created', workspaceId, confirmation }
+        } catch (error) {
+          const refusal = error as { code?: string; message?: string }
+          return { outcome: refusal.code === 'aicraft/task-not-created' ? 'not-created' : 'unknown',
+            workspaceId, taskIdentifier: args.taskIdentifier, reason: error instanceof Error ? error.message : String(error),
+            nextAction: 'Read aicraft_project with taskIdentifier and expectedWorkspaceId; do not automatically repeat creation.' }
+        }
+      })
+    },
   }))
   ctx.tools.register(defineTool({
     name: 'aicraft_move_step', description: 'Select a non-cancelled task step, including a skipped step. Returning resets later statuses but keeps all materials.',

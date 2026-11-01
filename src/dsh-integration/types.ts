@@ -100,3 +100,21 @@ export interface DiagnosticEvent extends Omit<DiagnosticContext, 'sequence' | 's
   source: DiagnosticSource
   data: Record<string, unknown>
 }
+
+/** Result of checking an exact task in a fresh read of its original project.
+ */
+export interface TaskCreationCheck {
+  outcome: 'found' | 'not-found' | 'unavailable'
+  workspaceId: string
+  taskIdentifier: string
+  task: TaskView | null
+  reason: string | null
+}
+
+/** Stable creation refusal payload carried by the standard Remote mechanism.
+ */
+declare module '@deepseek-ai/dsh-typert-protocol' {
+  interface RemoteErrorDetailsMap {
+    'aicraft/task-not-created': { taskIdentifier: string; outcome: 'not-created' }
+  }
+}

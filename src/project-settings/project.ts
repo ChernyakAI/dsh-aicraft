@@ -61,13 +61,13 @@ export async function hasAicraftProject(fs: FileSystem, cwd: string, signal: Abo
 
 /**
  * START_METHOD_readProjectReadiness
- * Read project settings readiness without task or executor projections.
+ * Read required settings without inspecting knowledge materials or their marker.
  */
 
 export async function readProjectReadiness(fs: FileSystem, cwd: string, signal: AbortSignal, canCreate = true): Promise<ProjectReadiness> {
   return diagnosticOperation({ path: 'src/project-settings/project.ts', method: 'readProjectReadiness' }, { projectPath: cwd }, async () => {
     const prepared = await hasAicraftProject(fs, cwd, signal)
-    const requiredFiles = await Promise.all(Object.keys(defaults).map(async path => fs.stat(await targetFor(fs, cwd, `.aicraft/${path === 'project-rules.md' ? await projectRulesFile(fs, cwd, signal) : path}`, signal), signal)))
+    const requiredFiles = await Promise.all(Object.keys(defaults).filter(path => path !== 'knowledge-base/.gitkeep').map(async path => fs.stat(await targetFor(fs, cwd, `.aicraft/${path === 'project-rules.md' ? await projectRulesFile(fs, cwd, signal) : path}`, signal), signal)))
     const needsPreparation = requiredFiles.some(info => info?.type !== 'file')
     const result: ProjectReadiness = { prepared, needsPreparation, creationIssue: null, processes: [], requestTemplate: '' }
     if (!prepared) { result.creationIssue ??= 'Prepare AICraft project files first.'; return result }

@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import { assertProjectWritable,readTaskState } from '../task-management/queries.ts'
 import { stateSchema } from '../task-management/schemas.ts'
 import type { MaterialDocument,MaterialFile,MaterialGroup } from '../types.ts'
-import { createArtifactScanner,targetFor } from '../work-materials/artifact-files.ts'
+import { createArtifactScanner,KNOWLEDGE_ROOT,targetFor } from '../work-materials/artifact-files.ts'
 export { targetFor } from '../work-materials/artifact-files.ts'
 
 const MAX_BYTES = 2 * 1024 * 1024
@@ -47,7 +47,7 @@ export async function listMaterials(fs: FileSystem, cwd: string, taskId: string 
         await group(`step:${step.id}`, step.title, prefix, prefix)
       }
     }
-    await group('knowledge', 'Знания проекта', '.aicraft/knowledge-base', '.aicraft/knowledge-base')
+    await group('knowledge', 'Знания проекта', KNOWLEDGE_ROOT, KNOWLEDGE_ROOT)
     return groups
 
   })

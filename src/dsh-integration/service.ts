@@ -12,7 +12,7 @@ import type { SandboxMode } from '@deepseek-ai/dsh-sandbox'
 import type { } from '@deepseek-ai/dsh-session-query'
 import type { } from '@deepseek-ai/dsh-session-title'
 import type { } from '@deepseek-ai/dsh-subprocess'
-import { Remote,TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
+import { Remote,RemoteError,TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { } from '@deepseek-ai/dsh-workspace'
 import { StatisticsController } from '../execution-accounting/statistics.ts'
 import { saveProcess } from '../project-settings/processes.ts'
@@ -23,8 +23,9 @@ import { readSettings } from '../project-settings/settings.ts'
 import { setStepModel } from '../step-execution/models.ts'
 import { defaultStepPrompt,openStepPrompt } from '../step-execution/prompts.ts'
 import { RunController } from '../step-execution/runs.ts'
+import { TaskCreationRefusal } from '../task-management/creation-result.ts'
 import { createTask,updateTask } from '../task-management/commands.ts'
-import type { CreateTaskRequest,ExecutionStatistics,InitializeProjectRequest,MaterialDocument,MaterialGroup,ProcessDefinition,ProcessDocument,ProcessTemplateLanguage,ProjectChange,ProjectPresence,ProjectSettings,ProjectView,RoleDocument,RunModel,RunView,TaskSnapshot } from '../types.ts'
+import type { CreateTaskRequest,TaskCreationConfirmation,ExecutionStatistics,InitializeProjectRequest,MaterialDocument,MaterialGroup,ProcessDefinition,ProcessDocument,ProcessTemplateLanguage,ProjectChange,ProjectPresence,ProjectSettings,ProjectView,RoleDocument,RunModel,RunView,TaskSnapshot } from '../types.ts'
 import { deleteStepMaterials } from '../work-materials/cleanup.ts'
 import { listMaterials,readMaterial,saveMaterial } from '../work-materials/materials.ts'
 import type { Config } from './config.ts'
@@ -387,11 +388,13 @@ export class AicraftService extends TypertRemoteService {
    * @param workspaceId - Registered DSH project identity.
    * @param request - Task title, selected process and requirements.
    * @param signal - Caller cancellation.
-   * @returns Project state with the created task.
+   * @returns Publication confirmation; full project state is read separately.
    */
   @Remote
-  createTask(workspaceId: string, request: CreateTaskRequest, signal: AbortSignal): Promise<ProjectView> {
-    return createTask(this.ctx.fs, this.ctx.subprocess, this.projectPath(workspaceId), request, this.config, signal, readProject)
+  async createTask(workspaceId: string, request: CreateTaskRequest, signal: AbortSignal): Promise<TaskCreationConfirmation> {
+    try {
+      return await createTask(this.ctx.fs, this.ctx.subprocess, this.projectPath(workspaceId), request, this.config, signal, readProject)
+    } catch (error) { throw creationFailure(error) }
   }
   // END_METHOD_AicraftService.createTask
 
@@ -529,3 +532,11 @@ export async function resolveModel(ctx: Context, assignment: RunModel, signal: A
   })
 }
 // END_METHOD_resolveModel
+
+/** Translate only a refusal proven by the task publication owner.
+ */
+function creationFailure(error: unknown): unknown {
+  if (error instanceof TaskCreationRefusal) return new RemoteError('aicraft/task-not-created', error.message,
+    { taskIdentifier: error.taskIdentifier, outcome: 'not-created' }, { cause: error })
+  return error
+}

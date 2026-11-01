@@ -39,3 +39,14 @@ export interface TaskDataSnapshot {
   allTasks: TaskData[]
   issues: string[]
 }
+
+/** Publication-time result, independent of subsequent project reads.
+ */
+export interface TaskCreationConfirmation {
+  taskIdentifier: string
+  title: string
+  initialState: {
+    status: 'open'
+    stepStates: { id: string; status: 'current' | 'pending' }[]
+  }
+}

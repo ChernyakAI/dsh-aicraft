@@ -12,16 +12,17 @@ import { useState,type ReactNode } from 'react'
  * @param props - Project templates, translations and creation operation.
  * @returns The task creation form.
  */
-export function CreateTaskForm({ project, busy, t, submit }: {
+export function CreateTaskForm({ project, busy, t, submit, initial }: {
+  initial?: CreateTaskRequest
   project: ProjectView
   busy: boolean
   t: PropsLocale<'aicraft'>['t']
   submit(request: CreateTaskRequest): Promise<void>
 }): ReactNode {
-  const [taskIdentifier, setTaskIdentifier] = useState('')
-  const [title, setTitle] = useState('')
-  const [processId, setProcessId] = useState(project.processes[0]?.id ?? '')
-  const [requestText, setRequestText] = useState(project.requestTemplate)
+  const [taskIdentifier, setTaskIdentifier] = useState(initial?.taskIdentifier ?? '')
+  const [title, setTitle] = useState(initial?.title ?? '')
+  const [processId, setProcessId] = useState(initial?.processId ?? project.processes[0]?.id ?? '')
+  const [requestText, setRequestText] = useState(initial?.requestText ?? project.requestTemplate)
   const field = { width: '100%', padding: 10, borderRadius: 7, border: '1px solid #8090a060', color: 'inherit', background: 'transparent', boxSizing: 'border-box' as const }
   const duplicate = project.task.allTasks.some(task => task.id === taskIdentifier)
   const validId = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(taskIdentifier)
@@ -35,6 +36,7 @@ export function CreateTaskForm({ project, busy, t, submit }: {
     <input id="aicraft-title" required disabled={busy} value={title} onChange={event => setTitle(event.target.value)} style={{ ...field, margin: '8px 0 16px' }} />
     <label htmlFor="aicraft-process">{t('process')}</label>
     <select id="aicraft-process" required disabled={busy} value={processId} onChange={event => setProcessId(event.target.value)} style={{ ...field, margin: '8px 0 16px' }}>
+      {processId && !project.processes.some(process => process.id === processId) && <option value={processId}>{processId}</option>}
       {project.processes.map(process => <option key={process.id} value={process.id}>{process.name}</option>)}
     </select>
     <label htmlFor="aicraft-request">{t('requirements')}</label>

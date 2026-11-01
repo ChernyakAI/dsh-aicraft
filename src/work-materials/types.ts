@@ -8,5 +8,7 @@ export interface MaterialFile { path: string; name: string }
 /** Documents grouped by task stage or project purpose. */
 export interface MaterialGroup { id: string; title: string; files: MaterialFile[]; issue: string | null }
 
-/** Bounded read-only document content for the panel. */
+/**
+ * Versioned document content returned by material reads and saves.
+ */
 export interface MaterialDocument { path: string; text: string; version: string; format: 'markdown' | 'text'; readOnly?: boolean }

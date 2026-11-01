@@ -34,7 +34,7 @@ When creating a task, you select a suitable process. AICraft helps you follow it
 
 > Before asking an agent to install the plugin, switch to **Creator mode**.
 
-1. Install [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) version **0.2.1-rc.3**.
+1. Install [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) version **0.2.1-rc.5**.
 2. Download the latest version of the plugin from [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases).
 3. In DSH, open **Plugins → Add plugin**, enter the path to the downloaded archive, and install it. Do not unpack the archive. Access to the npm registry is required to install dependencies.
 4. Fully quit DSH and launch it again. In Desktop, use **Quit DeepSeek Harness**: closing the window may leave the application running in the system tray.

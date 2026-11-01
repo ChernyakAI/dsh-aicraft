@@ -8,7 +8,7 @@ import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { readRuns } from '../step-execution/history.ts'
 import { readTaskState } from '../task-management/queries.ts'
-import { artifactSummary } from '../work-materials/artifact-files.ts'
+import { artifactSummary, isKnowledgeFile, KNOWLEDGE_ROOT } from '../work-materials/artifact-files.ts'
 import type { ProjectConfig } from './config.ts'
 import { currentBranch,gitDirectory } from './git.ts'
 import type { ProjectChange,SessionActivity } from './types.ts'
@@ -61,7 +61,7 @@ export class ProjectWatch {
       const descend = (path: string) => path === '.aicraft' || path === '.aicraft/config' || path.startsWith('.aicraft/config/')
         || path === '.aicraft/tasks' || /^\.aicraft\/tasks\/[^/]+$/.test(path)
         || (taskId !== null && path.startsWith(`.aicraft/tasks/${taskId}/`))
-        || path === '.aicraft/knowledge-base' || path.startsWith('.aicraft/knowledge-base/')
+        || path === KNOWLEDGE_ROOT
       const drop = async (path: string, remember = false) => {
         if (!remember) for (const name of previousEntries.keys()) if (name === path || name.startsWith(path + '/')) previousEntries.delete(name)
         // Snapshot membership while asynchronous cleanup changes the live watch map.
@@ -92,6 +92,13 @@ export class ProjectWatch {
         }
         const entries = new Map<string, string>(), children: string[] = []
         for (const entry of await this.ctx.fs.listDir(target, signal)) {
+          // Knowledge has its own selection, including ordinary .creating-*.md files.
+          if (directory === KNOWLEDGE_ROOT) {
+            const child = `${directory}/${entry.name}`
+            const metadata = await this.ctx.fs.lstat(child, { cwd }, signal)
+            if (isKnowledgeFile(entry.name, metadata?.type)) entries.set(child, String(metadata!.version))
+            continue
+          }
           if (entry.name.startsWith('.creating-') || entry.name.endsWith('.lock') || entry.name === '.gitkeep') continue
           const child = directory ? `${directory}/${entry.name}` : entry.name
           if (!relevant(child) || (directory === '$git' && !['HEAD', 'commondir'].includes(entry.name))) continue
@@ -105,7 +112,10 @@ export class ProjectWatch {
             const wasDirectory = watch.entries.get(name)?.startsWith('directory:')
             const isDirectory = entries.get(name)?.startsWith('directory:')
             // Rebind replaced directories while retaining snapshots for precise diffs.
-            if (wasDirectory && isDirectory) await drop(name, true)
+            if (wasDirectory && isDirectory) {
+              await drop(name, true)
+              if (name === KNOWLEDGE_ROOT) paths.add(name)
+            }
             else { paths.add(name); if (wasDirectory) await drop(name) }
           }
         }
@@ -141,8 +151,10 @@ export class ProjectWatch {
             resolve; if (signal.aborted) resolve() })
           signal.throwIfAborted()
           if (failure) throw failure
-          const directories = [...dirty]; dirty.clear()
-          for (const directory of directories) await sync(directory)
+          const directories = [...dirty].sort((a, b) => a.length - b.length); dirty.clear()
+          // Parents may remove/rebind a child in the same batch; stale callbacks
+          // must not resurrect watches for removed or excluded directories.
+          for (const directory of directories) if (watches.has(directory)) await sync(directory)
           if ([...paths].some(path => path === '.git' || path.startsWith('.git/'))) {
             await drop('$git'); gitRoot = await gitDirectory(this.ctx.subprocess, cwd, this.config, signal)
             if (gitRoot) await sync('$git', true)
@@ -162,6 +174,7 @@ export class ProjectWatch {
           if (changedPaths.length || activity.length) yield { kind: 'change', paths: changedPaths, counts, sessions: activity, ...(changedPaths.some(path => path.startsWith('$git/')) ? { branch: await currentBranch(this.ctx.subprocess, cwd, this.config, signal) } : {}) }
         }
       } finally {
+        owner.abort()
         off(); signal.removeEventListener('abort', off); signal.removeEventListener('abort', cancel)
         try { await finish() } finally { this.owners.delete(owner) }
       }

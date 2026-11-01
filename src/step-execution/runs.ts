@@ -235,6 +235,9 @@ export class RunController {
         const outputPath = `.aicraft/tasks/${taskId}/${stepId}`
         const sessionId = `session-${randomUUID()}`
         const prompt = await inputPrompt(this.ctx.fs, cwd, taskId, stepId, signal)
+        if (!prompt.trim()) throw diagnosticRejection(new Error(
+          `The saved prompt is empty. Edit and save ${outputPath}/input-prompt.md before starting an executor.`,
+        ))
         let run: RunView = { id, stepId, sessionId, status: 'starting', startedAt: new Date().toISOString(), finishedAt: null, outputPath, model, error: null }
         diagnosticAccepted({ runId: id, sessionId, model, taskId, stepId })
         const savedProcess = await targetFor(this.ctx.fs, cwd, `.aicraft/tasks/${taskId}/process.json`, signal)

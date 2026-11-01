@@ -70,6 +70,17 @@ Do not change code or configuration.`],
     `Проверь анализ и план на соответствие постановке, полноту
 и выполнимость.
 
+При каждом ревью, включая повторное после исправлений, полностью и
+независимо проверь весь согласованный анализ и план текущей версии.
+Заново установи обязательства по постановке и правилам проекта
+и собери собственные доказательства. Предыдущие результаты, отчёты
+и одобрения их не заменяют. Прежние замечания и исправления проверяй
+по ходу полного ревью; ими нельзя ограничивать его объём.
+Доведи ревью до итогового вывода. Незавершённая работа сама по себе
+не является блокером или основанием остановиться. Остановка до
+завершения допустима по явной команде пользователя или при реальном
+блокере по правилам проекта.
+
 Проверяй факты и зависимости с помощью предоставленных инструментов
 и применимых навыков. Если специальных инструментов не предусмотрено,
 используй файлы исходных кодов проекта.
@@ -81,6 +92,8 @@ Do not change code or configuration.`],
 Заверши выводом: план готов к реализации или требует доработки.
 Код, конфигурацию и проверяемый план не изменяй.`,
     `Review the analysis and plan for compliance with requirements, completeness and feasibility.
+
+For every review, including after corrections, independently review the entire agreed analysis and plan on the current version. Establish obligations afresh from the requirements and project rules and collect your own evidence. Previous results, reports and approvals do not replace it. Verify earlier findings and corrections during the full review; they must not limit its scope. Carry the review through to a final conclusion. Unfinished work alone is not a blocker or a reason to stop. Stop before completion only on an explicit user instruction or for a real blocker under project rules.
 
 Verify facts and dependencies using the provided tools and applicable skills. If no specialized tools are provided, use the project source files.
 
@@ -147,6 +160,18 @@ Do not fix code or configuration yourself.`],
     `Сопоставь реализацию с постановкой, согласованным планом
 и правилами проекта.
 
+При каждом ревью, включая повторное после исправлений, полностью и
+независимо проверь весь согласованный объём задачи на текущей версии.
+Заново установи обязательства по постановке и правилам проекта,
+исследуй реализацию и зависимости, выполни необходимые проверки
+и оцени их свидетельства. Предыдущие результаты, отчёты и одобрения
+не заменяют собственных доказательств. Прежние замечания и исправления
+проверяй по ходу полного ревью; ими нельзя ограничивать его объём.
+Доведи ревью до итогового вывода. Незавершённая работа сама по себе
+не является блокером или основанием остановиться. Остановка до
+завершения допустима по явной команде пользователя или при реальном
+блокере по правилам проекта.
+
 Исследуй изменения и необходимые зависимости с помощью предоставленных
 инструментов и применимых навыков. Если специальных инструментов
 не предусмотрено, используй файлы исходных кодов проекта и доступное
@@ -162,6 +187,8 @@ Do not fix code or configuration yourself.`],
 
 Код и конфигурацию самостоятельно не исправляй.`,
     `Compare the implementation with requirements, the agreed plan and project rules.
+
+For every review, including after corrections, independently review the entire agreed task scope on the current version. Establish obligations afresh from the requirements and project rules, inspect the implementation and dependencies, perform the necessary checks and assess their evidence. Previous results, reports and approvals do not replace your own evidence. Verify earlier findings and corrections during the full review; they must not limit its scope. Carry the review through to a final conclusion. Unfinished work alone is not a blocker or a reason to stop. Stop before completion only on an explicit user instruction or for a real blocker under project rules.
 
 Inspect changes and necessary dependencies using the provided tools and applicable skills. If no specialized tools are provided, use the project source files and available change comparisons.
 

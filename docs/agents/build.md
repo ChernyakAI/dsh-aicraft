@@ -4,7 +4,7 @@ DESCRIPTION: Build and package the plugin in its supported development environme
 -->
 # Building AICraft from source
 
-Node.js 24 LTS and pnpm 11.28.5 are required. The supported DSH version is 0.2.1-rc.3; no adjacent DSH checkout is needed.
+Node.js 24 LTS and pnpm 11.28.5 are required. The supported DSH version is 0.2.1-rc.5; no adjacent DSH checkout is needed.
 
 From the root of the public repository, run:
 
