@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "title": {
+    "en": "AICraft",
+    "ru": "AICraft"
+  },
+  "description": {
+    "en": "Staged project workflows with AI agents in DeepSeek Harness.",
+    "ru": "Поэтапная работа над проектами с ИИ-агентами в DeepSeek Harness."
+  },
+  "plugins": [
+    {
+      "name": "dsh-aicraft",
+      "title": "AICraft",
+      "description": {
+        "en": "Staged project workflows with AI agents in DeepSeek Harness.",
+        "ru": "Поэтапная работа над проектами с ИИ-агентами в DeepSeek Harness."
+      },
+      "versions": [
+        {
+          "version": "0.4.1",
+          "publishTimestamp": 1795032204,
+          "engines": {
+            "dsh": "0.2.2-rc.3"
+          },
+          "source": {
+            "type": "git",
+            "url": "https://github.com/ChernyakAI/dsh-aicraft",
+            "commit": "92807b48e63287f3b698c9fcbca8cc8c8ecfcd75"
+          }
+        }
+      ]
+    }
+  ]
+}
