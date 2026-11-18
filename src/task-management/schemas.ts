@@ -16,13 +16,13 @@ export const stateSchema = z.object({
   })).min(1),
 }).strict().superRefine((state, ctx) => {
   const ids = state.stepStates.map(step => step.id)
-  if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'Step IDs must be unique' })
+  if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'Step IDs must be unique' , params: { uiMessage: { key: 'constraintStepIDsMustBeUnique' } } })
   if (state.stepStates.filter(step => step.status === 'current').length > 1) {
-    ctx.addIssue({ code: 'custom', message: 'Only one step may be current' })
+    ctx.addIssue({ code: 'custom', message: 'Only one step may be current' , params: { uiMessage: { key: 'constraintOnlyOneStepMayBeCurrent' } } })
   }
 })
 export const requestSchema = z.object({
   taskIdentifier: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/, 'Task ID must contain 1–128 letters, digits, hyphens or underscores, starting with a letter or digit.')
-    .refine(id => !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(id), 'This Task ID is reserved by Windows. Choose another ID.'),
+    .refine(id => !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(id), { message: 'This Task ID is reserved by Windows. Choose another ID.', params: { uiMessage: { key: 'reservedTaskId' } } }),
   title: z.string().trim().min(1), processId: z.string().regex(/^[a-z][a-z0-9-]*$/), requestText: z.string().trim().min(1),
 })

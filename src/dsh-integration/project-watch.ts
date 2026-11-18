@@ -2,6 +2,7 @@
  * FILE: plugin/src/dsh-integration/project-watch.ts
  * DESCRIPTION: Watch project files and native executor activity with owned cleanup
  */
+import { ownMessage, withUiMessage } from '../ui-message.ts'
 import { diagnosticRejection, diagnosticStream } from './diagnostics.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -30,7 +31,7 @@ export class ProjectWatch {
 
   async *follow(cwd: string, taskId: string | null, caller: AbortSignal): AsyncIterable<ProjectChange> {
     yield* diagnosticStream<ProjectChange>({ path: 'src/dsh-integration/project-watch.ts', method: 'ProjectWatch.follow' }, { projectPath: cwd, taskId: taskId }, async function* (this: ProjectWatch): AsyncGenerator<ProjectChange> {
-      if (taskId !== null && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(taskId)) throw diagnosticRejection(new Error('Invalid task identifier'))
+      if (taskId !== null && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(taskId)) throw diagnosticRejection(withUiMessage(new Error('Invalid task identifier'), ownMessage({ key: 'reasonInvalidTaskIdentifier' })))
       const owner = new AbortController(), signal = AbortSignal.any([caller, owner.signal])
       const watches = new Map<string, { close(): Promise<void>; entries: Map<string, string> }>()
       const previousEntries = new Map<string, Map<string, string>>()
@@ -81,7 +82,7 @@ export class ProjectWatch {
         const target = await this.ctx.fs.resolve(path, { cwd, signal })
         if (directory !== '$git') {
           const root = await this.ctx.fs.resolve(cwd, { signal })
-          if (!this.ctx.fs.contains(root, target)) throw diagnosticRejection(new Error('AICraft watch directory is outside the project'))
+          if (!this.ctx.fs.contains(root, target)) throw diagnosticRejection(withUiMessage(new Error('AICraft watch directory is outside the project'), ownMessage({ key: 'reasonAICraftWatchDirectoryIsOutsideTheProject' })))
         }
         let watch = watches.get(directory)
         if (!watch) {
@@ -135,7 +136,7 @@ export class ProjectWatch {
         })
       }
       const off = this.ctx.on('session/event', (session, event) => {
-        if (taskId === null || (!knownSessions.has(session.id) && !(initializing && session.header.cwd === cwd)) || !['turn/start', 'turn/end'].includes(event.type)) return
+        if (taskId === null || (!knownSessions.has(session.id) && !nativeActivity.has(session.id) && !(initializing && session.header.cwd === cwd)) || !['turn/start', 'turn/end'].includes(event.type)) return
         const activity = { id: session.id, running: event.type === 'turn/start', revision: String(event.seq + 1) }
         nativeActivity.set(session.id, activity); sessions.set(session.id, activity); notify()
       })
@@ -168,7 +169,8 @@ export class ProjectWatch {
           const stepIds = new Set(changedPaths.map(path => path.match(/^\.aicraft\/tasks\/([^/]+)\/([^/]+)(?:\/|$)/)).filter(match => match && match[1] === taskId && !match[2]!.includes('.')).map(match => match![2]!))
           for (const stepId of stepIds) {
             const summary = await artifactSummary(this.ctx.fs, cwd, `.aicraft/tasks/${taskId}/${stepId}`, signal)
-            counts.push({ taskId: taskId!, stepId, count: summary.artifactCount, issue: summary.artifactIssue })
+            counts.push({ taskId: taskId!, stepId, count: summary.artifactCount, issue: summary.artifactIssue,
+              ...(summary.artifactIssueMessage ? { issueMessage: summary.artifactIssueMessage } : {}) })
           }
           const activity = [...sessions.values()].filter(item => knownSessions.has(item.id)); sessions.clear()
           if (changedPaths.length || activity.length) yield { kind: 'change', paths: changedPaths, counts, sessions: activity, ...(changedPaths.some(path => path.startsWith('$git/')) ? { branch: await currentBranch(this.ctx.subprocess, cwd, this.config, signal) } : {}) }

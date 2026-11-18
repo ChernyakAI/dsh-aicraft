@@ -2,6 +2,7 @@
  * FILE: plugin/src/dsh-integration/project-view.ts
  * DESCRIPTION: Compose project readiness, task data, history and material counts
  */
+import { messageOf, externalMessage } from '../ui-message.ts'
 import { diagnosticOperation } from './diagnostics.ts'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import type Subprocess from '@deepseek-ai/dsh-subprocess'
@@ -43,6 +44,7 @@ export async function readProject(
         catch (error) {
           signal.throwIfAborted()
           result.executionIssue = error instanceof Error ? error.message : String(error)
+          result.executionIssueMessage = messageOf(error) ?? externalMessage('executionInputsUnavailable', error)
         }
       }
     }
@@ -52,11 +54,14 @@ export async function readProject(
 }
 // END_METHOD_readProject
 
-/** Add history and material counts to validated task data at the integration boundary. */
+/**
+ * Add history and material counts, projecting owner-reported issues to the panel's text format.
+ */
 export async function readTaskView(fs: FileSystem, cwd: string, signal: AbortSignal): Promise<TaskSnapshot> {
   const snapshot = await readTaskSnapshot(fs, cwd, signal, false)
   const allTasks: TaskView[] = []
-  const issues = [...snapshot.issues]
+  const issues = snapshot.issues.map(issue => issue.message)
+  const issueMessages = snapshot.issues.map(issue => issue.uiMessage ?? externalMessage('invalidTaskState', issue.message))
   for (const task of snapshot.allTasks) {
     try {
       const runs = await readRuns(fs, cwd, task.id, signal)
@@ -67,8 +72,12 @@ export async function readTaskView(fs: FileSystem, cwd: string, signal: AbortSig
     } catch (error) {
       signal.throwIfAborted()
       issues.push(`.aicraft/tasks/${task.id}/state.json: ${error instanceof Error ? error.message : String(error)}`)
+      const descriptor = messageOf(error)
+      const path = `.aicraft/tasks/${task.id}/state.json`
+      issueMessages.push(descriptor ? { ...descriptor, details: [path, ...(descriptor.details ?? [])] }
+        : { key: 'taskReadFailed', params: { path }, details: [error instanceof Error ? error.message : String(error)] })
     }
   }
   const tasks = allTasks.filter(task => task.status === 'open')
-  return { kind: issues.length ? 'invalid' : tasks.length === 0 ? 'empty' : tasks.length === 1 ? 'task' : 'ambiguous', tasks: issues.length ? [] : tasks, allTasks, issues }
+  return { kind: issues.length ? 'invalid' : tasks.length === 0 ? 'empty' : tasks.length === 1 ? 'task' : 'ambiguous', tasks: issues.length ? [] : tasks, allTasks, issues, issueMessages }
 }

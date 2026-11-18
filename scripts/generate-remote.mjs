@@ -77,6 +77,7 @@ for (const [name, content] of Object.entries({
   'typert.host.d.ts': host.dts,
   'typert.remote-client.js': host.remote.js,
   'typert.remote-client.d.ts': host.remote.dts,
+  'typert.remote-client.d.ts.map': host.remote.dtsMap,
 })) {
   await writeFile(join(root, 'lib', name), content)
 }

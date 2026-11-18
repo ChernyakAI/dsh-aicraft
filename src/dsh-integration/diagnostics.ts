@@ -72,8 +72,8 @@ export function diagnosticRejection<T>(error: T): T {
  */
 export function diagnosticAccepted(data: Record<string, unknown> = {}): void {
   const context = storage.getStore()
+  if (context) for (const key of ['runId', 'sessionId', 'taskId', 'stepId', 'workspaceId'] as const) if (typeof data[key] === 'string') context[key] = data[key]
   if (context && !accepted.has(context)) {
-    for (const key of ['runId', 'sessionId', 'taskId', 'stepId', 'workspaceId'] as const) if (typeof data[key] === 'string') context[key] = data[key]
     accepted.add(context)
     diagnosticEvent('input.accepted', { fields: Object.keys(data), encoding: 'json-v1',
       sha256: createHash('sha256').update(JSON.stringify(data)).digest('hex') })
@@ -90,12 +90,16 @@ export function diagnosticCommitted(data: Record<string, unknown> = {}): void {
 }
 // END_METHOD_diagnosticCommitted
 
-function failure(error: unknown, seen = new WeakSet<object>()): Record<string, unknown> {
+/**
+ * Retain native error stacks and causes in the existing diagnostic format.
+ */
+export function diagnosticFailure(error: unknown, seen = new WeakSet<object>()): Record<string, unknown> {
   if (!(error instanceof Error)) return { name: typeof error, message: String(error) }
   if (seen.has(error)) return { name: error.name, circularCause: true }
   seen.add(error)
   return { name: error.name, message: error.message, stack: error.stack,
-    ...(error.cause === undefined ? {} : { cause: failure(error.cause, seen) }) }
+    ...('code' in error && typeof error.code === 'string' ? { code: error.code } : {}),
+    ...(error.cause === undefined ? {} : { cause: diagnosticFailure(error.cause, seen) }) }
 }
 
 function finishError(error: unknown): void {
@@ -103,7 +107,7 @@ function finishError(error: unknown): void {
   const cancelled = (error as Error)?.name === 'AbortError' || code === 'FS_ABORTED'
   const rejected = typeof error === 'object' && error !== null && (rejectedErrors.has(error)
     || (error as Error).name === 'ZodError' || ['FS_STALE_VERSION', 'FS_NOT_OBSERVED', 'FS_NOT_TEXT', 'FS_TOO_LARGE'].includes(code ?? ''))
-  diagnosticEvent(cancelled ? 'operation.cancelled' : rejected ? 'operation.rejected' : 'operation.failed', { error: failure(error) })
+  diagnosticEvent(cancelled ? 'operation.cancelled' : rejected ? 'operation.rejected' : 'operation.failed', { error: diagnosticFailure(error) })
 }
 
 /**

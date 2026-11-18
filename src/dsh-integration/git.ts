@@ -2,9 +2,13 @@
  * FILE: plugin/src/dsh-integration/git.ts
  * DESCRIPTION: Read optional Git branch and worktree metadata
  */
+import { ownMessage, withUiMessage } from '../ui-message.ts'
 import type Subprocess from '@deepseek-ai/dsh-subprocess'
 import type { ProjectConfig } from './config.ts'
 
+/**
+ * Read complete optional Git metadata without inventing a branch on truncated output.
+ */
 async function git(
   subprocess: Subprocess,
   cwd: string,
@@ -23,7 +27,7 @@ Promise<string | null> {
   runSignal.throwIfAborted()
   if (outcome.exitCode !== 0) return null
   const output = handle.collected.stdout?.readFrom(0)
-  if (!output || output.lossy) throw new Error('Could not read complete Git output')
+  if (!output || output.lossy) throw withUiMessage(new Error('Could not read complete Git output'), ownMessage({ key: 'reasonCouldNotReadCompleteGitOutput' }))
   return output.text.trim()
 }
 /**

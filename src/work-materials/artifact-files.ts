@@ -2,6 +2,8 @@
  * FILE: plugin/src/work-materials/artifact-files.ts
  * DESCRIPTION: Resolve contained paths and scan bounded material trees
  */
+import { ownMessage, withUiMessage, messageOf, externalMessage } from '../ui-message.ts'
+import { OperationRefusal } from '../step-execution/application/observe-run.ts'
 import { diagnosticRejection } from '../dsh-integration/diagnostics.ts'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 
@@ -10,6 +12,9 @@ const MAX_FILES = 500
 /** Internal knowledge selection shared by discovery and the watch snapshot.
  */
 export const KNOWLEDGE_ROOT = '.aicraft/knowledge-base'
+/**
+ * Recognize ordinary Markdown files for knowledge selection.
+ */
 export function isKnowledgeFile(name: string, type: string | undefined): boolean {
   return /\.md$/i.test(name) && type === 'file'
 }
@@ -20,13 +25,13 @@ export function isKnowledgeFile(name: string, type: string | undefined): boolean
  */
 export async function targetFor(fs: FileSystem, cwd: string, path: string, signal?: AbortSignal) {
   if (!path.startsWith('.aicraft/') || path.includes('\\') || path.includes('\0') || path.split('/').some(part => part === '..' || part === '.')) {
-    throw diagnosticRejection(new Error('Artifact path must be inside .aicraft'))
+    throw diagnosticRejection(withUiMessage(new OperationRefusal('access-denied', 'Artifact path must be inside .aicraft'), ownMessage({ key: 'reasonArtifactPathMustBeInsideAicraft' })))
   }
   const root = await fs.resolve(cwd, { signal })
   const target = await fs.resolve(path, { cwd, signal })
-  if (!fs.contains(root, target)) throw diagnosticRejection(new Error('Artifact is outside the selected project'))
+  if (!fs.contains(root, target)) throw diagnosticRejection(withUiMessage(new OperationRefusal('access-denied', 'Artifact is outside the selected project'), ownMessage({ key: 'reasonArtifactIsOutsideTheSelectedProject' })))
   const aicraft = await fs.resolve('.aicraft', { cwd, signal })
-  if (!fs.contains(root, aicraft) || !fs.contains(aicraft, target)) throw diagnosticRejection(new Error('Artifact is outside .aicraft'))
+  if (!fs.contains(root, aicraft) || !fs.contains(aicraft, target)) throw diagnosticRejection(withUiMessage(new OperationRefusal('access-denied', 'Artifact is outside .aicraft'), ownMessage({ key: 'reasonArtifactIsOutsideAicraft' })))
   return target
 }
 // END_METHOD_targetFor
@@ -38,7 +43,7 @@ export function createArtifactScanner(fs: FileSystem, cwd: string, signal: Abort
   let count = 0
   const scan = async (path: string, depth = 0): Promise<string[]> => {
     signal.throwIfAborted()
-    if (depth > 20) throw diagnosticRejection(new Error('Artifact directory nesting is too deep'))
+    if (depth > 20) throw diagnosticRejection(withUiMessage(new Error('Artifact directory nesting is too deep'), ownMessage({ key: 'reasonArtifactDirectoryNestingIsTooDeep' })))
     const info = await fs.lstat(path, { cwd }, signal)
     if (!info || info.type === 'symlink' || info.type === 'other') return []
     const target = await targetFor(fs, cwd, path, signal)
@@ -50,14 +55,14 @@ export function createArtifactScanner(fs: FileSystem, cwd: string, signal: Abort
         const metadata = await fs.lstat(child, { cwd }, signal)
         if (!isKnowledgeFile(entry.name, metadata?.type)) continue
         await targetFor(fs, cwd, child, signal)
-        if (++count > maxFiles) throw diagnosticRejection(new Error('Too many artifacts to display (limit: 500 files)'))
+        if (++count > maxFiles) throw diagnosticRejection(withUiMessage(new Error('Too many artifacts to display (limit: 500 files)'), ownMessage({ key: 'reasonTooManyArtifactsToDisplayLimit500Files' })))
         files.push(child)
         if (firstOnly) return files
       }
       return files.sort((a, b) => a.localeCompare(b))
     }
     if (info.type === 'file') {
-      if (++count > maxFiles) throw diagnosticRejection(new Error('Too many artifacts to display (limit: 500 files)'))
+      if (++count > maxFiles) throw diagnosticRejection(withUiMessage(new Error('Too many artifacts to display (limit: 500 files)'), ownMessage({ key: 'reasonTooManyArtifactsToDisplayLimit500Files' })))
       return [path]
     }
     const files: string[] = []
@@ -85,12 +90,14 @@ export async function artifactSummary(
   signal: AbortSignal,
 ): Promise<{
   artifactCount: number | null
-  artifactIssue: string | null }> {
+  artifactIssue: string | null
+  artifactIssueMessage?: import('../ui-message.ts').UiMessage
+}> {
   try {
     return { artifactCount: (await createArtifactScanner(fs, cwd, signal, Infinity)(path)).length, artifactIssue: null }
   } catch (error) {
     signal.throwIfAborted()
-    return { artifactCount: null, artifactIssue: error instanceof Error ? error.message : String(error) }
+    return { artifactCount: null, artifactIssue: error instanceof Error ? error.message : String(error), artifactIssueMessage: messageOf(error) ?? externalMessage('materialsReadFailed', error) }
   }
 }
 // END_METHOD_artifactSummary

@@ -2,6 +2,7 @@
  * FILE: plugin/src/client/task-creation.ts
  * DESCRIPTION: Retain each creation attempt independently of project snapshots
  */
+import type { Notice } from './messages.ts'
 import type { CreateTaskRequest,TaskCreationConfirmation,TaskCreationCheck } from 'dsh-aicraft/types'
 
 /** Local attempt identity and its separately read result. */
@@ -12,7 +13,7 @@ export interface TaskCreationAttempt {
   sequence: number
   outcome: 'sending' | 'created' | 'not-created' | 'unknown'
   confirmation: TaskCreationConfirmation | null
-  reason: string | null
+  reason: Notice | null
   check: TaskCreationCheck | null
 }
 

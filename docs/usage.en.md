@@ -44,3 +44,24 @@ Task settings, requirements, states, and artifacts are stored in the `.aicraft/`
 Only one open task is allowed in the current project state. Use separate branches or working directories for parallel tasks. If a merge leaves several tasks open, commands that modify data are blocked; return to the required task's branch or reconcile the task states.
 
 The panel updates in response to events. Use **Refresh task** to reload data if needed. Usage statistics update after execution finishes. **Cost** sums available estimates for supported DeepSeek models only; local and other models are not included. Estimates use rates embedded in the plugin. Prices are not updated online. See **Details** and **Detailed usage** for more information.
+
+## Task coordinator
+<a id="coordinator"></a>
+
+A coordinator is an agent assigned to lead a task: launch stage executors, review results and move through the process. Your instructions and project rules define its authority. You can start at any stage: in a conversation for the selected project, ask the agent to continue the current task. Prepare the project, process and task through the AICraft panel first.
+
+Example instruction for autonomous task coordination, adapted from the test project:
+
+```text
+You are the coordinator of the current AICraft task. First call aicraft_help.
+Read the requirements, saved process and current stage states.
+Continue from the current state; do not change the process or model assignments.
+Launch executors with the prepared assignments and review their results.
+You may independently accept results, complete stages and return stages for
+rework within the task requirements and project rules.
+Once all required stages are accepted, close the task.
+If you cannot proceed or need to go beyond the assignment, explain why.
+Briefly report progress and the final outcome. Communicate in English.
+```
+
+This example authorizes the coordinator to accept stages and close the task. To retain those decisions yourself, replace that permission with “Ask for my confirmation before completing a stage, returning it for rework or closing the task.” For reuse, save shared responsibilities in a role instruction and task-specific conditions in the task requirements and assignment. An executor finishing its response does not itself mean that the stage is accepted.

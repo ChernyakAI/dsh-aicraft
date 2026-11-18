@@ -2,6 +2,8 @@
  * FILE: plugin/src/project-settings/project.ts
  * DESCRIPTION: Read project readiness and prepare missing settings
  */
+import { validate } from '../validation.ts'
+import { ownMessage, withUiMessage, messageOf, externalMessage } from '../ui-message.ts'
 import { diagnosticAccepted, diagnosticPublication, diagnosticOperation, diagnosticRejection } from '../dsh-integration/diagnostics.ts'
 import { withFileLock } from '@deepseek-ai/dsh-atomic-write'
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
@@ -70,7 +72,7 @@ export async function readProjectReadiness(fs: FileSystem, cwd: string, signal: 
     const requiredFiles = await Promise.all(Object.keys(defaults).filter(path => path !== 'knowledge-base/.gitkeep').map(async path => fs.stat(await targetFor(fs, cwd, `.aicraft/${path === 'project-rules.md' ? await projectRulesFile(fs, cwd, signal) : path}`, signal), signal)))
     const needsPreparation = requiredFiles.some(info => info?.type !== 'file')
     const result: ProjectReadiness = { prepared, needsPreparation, creationIssue: null, processes: [], requestTemplate: '' }
-    if (!prepared) { result.creationIssue ??= 'Prepare AICraft project files first.'; return result }
+    if (!prepared) { result.creationIssue ??= 'Prepare AICraft project files first.'; result.creationIssueMessage = { key: 'prepareFirst' }; return result }
     try {
       result.requestTemplate = await text(fs, cwd, 'request.md', signal)
       const directory = await targetFor(fs, cwd, '.aicraft/config/processes', signal)
@@ -78,18 +80,19 @@ export async function readProjectReadiness(fs: FileSystem, cwd: string, signal: 
       for (const entry of await fs.listDir(directory, signal)) {
         if (entry.type !== 'file' || !entry.name.endsWith('.jsonc')) continue
         const id = entry.name.slice(0, -6)
-        if (!/^[a-z][a-z0-9-]*$/.test(id)) throw diagnosticRejection(new Error('Process filenames must be lowercase identifiers'))
+        if (!/^[a-z][a-z0-9-]*$/.test(id)) throw diagnosticRejection(withUiMessage(new Error('Process filenames must be lowercase identifiers'), ownMessage({ key: 'reasonProcessFilenamesMustBeLowercaseIdentifiers' })))
         const definition = await process(fs, cwd, id, signal)
         readyProcess ||= definition.steps.length > 0
         result.processes.push({ id, name: definition.name })
       }
       result.processes.sort((a, b) => a.id.localeCompare(b.id))
-      if (!result.creationIssue && !canCreate) result.creationIssue = 'Resolve or close the current task before creating another.'
-      if (!result.creationIssue && result.processes.length === 0) result.creationIssue = 'Add a process definition before creating a task.'
-      if (!result.creationIssue && !readyProcess) result.creationIssue = 'Add roles and at least one step in Project settings before creating a task.'
+      if (!result.creationIssue && !canCreate) { result.creationIssue = 'Resolve or close the current task before creating another.'; result.creationIssueMessage = { key: 'closeCurrentFirst' } }
+      if (!result.creationIssue && result.processes.length === 0) { result.creationIssue = 'Add a process definition before creating a task.'; result.creationIssueMessage = { key: 'addProcessFirst' } }
+      if (!result.creationIssue && !readyProcess) { result.creationIssue = 'Add roles and at least one step in Project settings before creating a task.'; result.creationIssueMessage = { key: 'addStepsFirst' } }
     } catch (error) {
       signal.throwIfAborted()
       result.creationIssue = error instanceof Error ? error.message : String(error)
+      result.creationIssueMessage = messageOf(error) ?? externalMessage('projectReadFailed', error)
     }
     return result
 
@@ -117,12 +120,12 @@ export async function prepareProject(
   readProject: ProjectReader,
 ): Promise<ProjectView> {
   return diagnosticOperation({ path: 'src/project-settings/project.ts', method: 'prepareProject' }, { projectPath: cwd }, async () => {
-    const input = request === null ? null : z.object({ template: z.enum(['ru', 'en', 'manual']), processId: z.string().regex(/^[a-z][a-z0-9-]*$/), definition: processDraftSchema.nullable() }).parse(request)
+    const input = request === null ? null : validate(z.object({ template: z.enum(['ru', 'en', 'manual']), processId: z.string().regex(/^[a-z][a-z0-9-]*$/), definition: processDraftSchema.nullable() }), request)
     const language = input?.template === 'en' || input?.template === 'manual' ? 'en' : 'ru'
     const definition = input?.template === 'manual' ? input.definition : input ? processTemplate(language) : defaultProcess
-    if (!definition || !definition.name.trim() || definition.steps.some(step => !step.title.trim())) throw diagnosticRejection(new Error('Enter a process name and names for any steps.'))
+    if (!definition || !definition.name.trim() || definition.steps.some(step => !step.title.trim())) throw diagnosticRejection(withUiMessage(new Error('Enter a process name and names for any steps.'), ownMessage({ key: 'reasonEnterAProcessNameAndNamesForAnySteps' })))
     const roles: Record<string, string> = input?.template === 'manual' ? {} : templateRoleInstructions(language)
-    if (input?.template !== 'manual' && definition.steps.some(step => !roles[step.role])) throw diagnosticRejection(new Error('Choose a supported role for each step.'))
+    if (input?.template !== 'manual' && definition.steps.some(step => !roles[step.role])) throw diagnosticRejection(withUiMessage(new Error('Choose a supported role for each step.'), ownMessage({ key: 'reasonChooseASupportedRoleForEachStep' })))
     const processPath = `config/processes/${input?.processId ?? 'manual'}.jsonc`
     const files = { ...defaults, ...Object.fromEntries(Object.entries(roles).map(([id, text]) => [`config/roles/${id}.md`, text])) }
     if (language === 'en') {
@@ -134,7 +137,7 @@ export async function prepareProject(
       signal.throwIfAborted()
       await assertProjectWritable(fs, cwd, signal)
       const target = await targetFor(fs, cwd, `.aicraft/${processPath}`, signal)
-      if (input && await fs.stat(target, signal)) throw diagnosticRejection(new Error('A process with this ID already exists. Choose another ID.'))
+      if (input && await fs.stat(target, signal)) throw diagnosticRejection(withUiMessage(new Error('A process with this ID already exists. Choose another ID.'), ownMessage({ key: 'reasonAProcessWithThisIDAlreadyExistsChooseAnotherID' })))
       await migrateProjectRules(fs, cwd, signal)
       for (const path of Object.keys(files)) await targetFor(fs, cwd, `.aicraft/${path}`, signal)
       diagnosticAccepted({ input, language })

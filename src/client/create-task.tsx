@@ -23,15 +23,15 @@ export function CreateTaskForm({ project, busy, t, submit, initial }: {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [processId, setProcessId] = useState(initial?.processId ?? project.processes[0]?.id ?? '')
   const [requestText, setRequestText] = useState(initial?.requestText ?? project.requestTemplate)
-  const field = { width: '100%', padding: 10, borderRadius: 7, border: '1px solid #8090a060', color: 'inherit', background: 'transparent', boxSizing: 'border-box' as const }
+  const field = { width: '100%', padding: 10, borderRadius: 7, border: '1px solid var(--aicraft-border, #8090a060)', color: 'inherit', background: 'transparent', boxSizing: 'border-box' as const }
   const duplicate = project.task.allTasks.some(task => task.id === taskIdentifier)
   const validId = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(taskIdentifier)
   return <form onSubmit={(event) => { event.preventDefault(); if (!duplicate && validId) void submit({ taskIdentifier, title,
     processId, requestText }) }} style={{ marginTop: 24 }}>
     <h2 style={{ fontSize: 16 }}>{t('create')}</h2>
-    <label htmlFor="aicraft-task-id">Task ID</label>
+    <label htmlFor="aicraft-task-id">{t('taskId')}</label>
     <input id="aicraft-task-id" required disabled={busy} maxLength={128} pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}" placeholder="task_name" value={taskIdentifier} onChange={event => setTaskIdentifier(event.target.value)} aria-describedby="aicraft-task-id-hint" aria-invalid={duplicate || (Boolean(taskIdentifier) && !validId)} style={{ ...field, margin: '8px 0' }} />
-    <p id="aicraft-task-id-hint" role={duplicate ? 'alert' : undefined} style={{ fontSize: 12, margin: '0 0 16px', color: duplicate ? '#dc4545' : 'inherit', opacity: duplicate ? 1 : 0.65 }}>{duplicate ? `Task directory "${taskIdentifier}" already exists. Choose another Task ID.` : 'Used as the task directory name. Letters, digits, hyphens and underscores; starts with a letter or digit.'}</p>
+    <p id="aicraft-task-id-hint" role={duplicate ? 'alert' : undefined} style={{ fontSize: 12, margin: '0 0 16px', color: duplicate ? 'var(--aicraft-error, #dc4545)' : 'inherit', opacity: duplicate ? 1 : 0.65 }}>{duplicate ? t('reasonTaskDirectoryValue0AlreadyExistsChooseAnotherTaskID', { value0: taskIdentifier }) : t('taskIdHint')}</p>
     <label htmlFor="aicraft-title">{t('title')}</label>
     <input id="aicraft-title" required disabled={busy} value={title} onChange={event => setTitle(event.target.value)} style={{ ...field, margin: '8px 0 16px' }} />
     <label htmlFor="aicraft-process">{t('process')}</label>

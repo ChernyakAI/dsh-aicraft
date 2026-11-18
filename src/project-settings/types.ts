@@ -2,6 +2,7 @@
  * FILE: plugin/src/project-settings/types.ts
  * DESCRIPTION: Expose the owner-defined data contracts
  */
+import type { UiMessage } from '../ui-message.ts'
 import type { RunModel } from '../step-execution/types.ts'
 /** One available process definition. */
 export interface ProcessView {
@@ -9,11 +10,13 @@ export interface ProcessView {
   name: string
 }
 
-/** Editable project process template; task snapshots are separate. */
+/**
+ * Define editable project processes independently of their saved task snapshots.
+ */
 export interface ProcessDefinition {
   language?: ProcessTemplateLanguage
   name: string
-  steps: { id: string; title: string; role: string; model?: RunModel | null }[]
+  steps: { id: string; title: string; description?: string; role: string; model?: RunModel | null }[]
 }
 
 export interface ProcessDocument { id: string; definition: ProcessDefinition; version: string }
@@ -35,6 +38,7 @@ export interface ProjectReadiness {
   prepared: boolean
   needsPreparation: boolean
   creationIssue: string | null
+  creationIssueMessage?: UiMessage
   processes: ProcessView[]
   requestTemplate: string
 }

@@ -13,14 +13,16 @@ export function defaultStepModel(): RunModel {
 }
 // END_METHOD_defaultStepModel
 
-// One route shared by both translations; only displayed names differ.
+/**
+ * Share the ordered route and English stage purposes across the two displayed languages.
+ */
 const steps = [
-  ['analysis', 'analyst', 'Анализ / планирование', 'Analysis / planning'],
-  ['plan-review', 'plan-reviewer', 'Ревьюер плана', 'Plan review'],
-  ['development', 'developer', 'Разработка', 'Development'],
-  ['testing', 'qa', 'Тестирование', 'Testing'],
-  ['review', 'reviewer', 'Ревью реализации', 'Implementation review'],
-  ['delivery', 'release-manager', 'Подготовка поставки', 'Delivery preparation'],
+  ['analysis', 'analyst', 'Анализ / планирование', 'Analysis / planning', 'Analyze the request and plan the work.'],
+  ['plan-review', 'plan-reviewer', 'Ревьюер плана', 'Plan review', 'Review the analysis and implementation plan.'],
+  ['development', 'developer', 'Разработка', 'Development', 'Implement the approved plan.'],
+  ['testing', 'qa', 'Тестирование', 'Testing', 'Test the implementation against the requirements.'],
+  ['review', 'reviewer', 'Ревью реализации', 'Implementation review', 'Review the implementation and its evidence.'],
+  ['delivery', 'release-manager', 'Подготовка поставки', 'Delivery preparation', 'Prepare the accepted result for delivery.'],
 ] as const
 /**
  * START_METHOD_processTemplate
@@ -30,7 +32,7 @@ export function processTemplate(language: ProcessTemplateLanguage): ProcessDefin
   return {
     language,
     name: language === 'ru' ? 'Новая функциональность' : 'New feature',
-    steps: steps.map(([id, role, ru, en]) => ({ id, title: language === 'ru' ? ru : en, role, model: defaultStepModel() })),
+    steps: steps.map(([id, role, ru, en, description]) => ({ id, title: language === 'ru' ? ru : en, description, role, model: defaultStepModel() })),
   }
 }
 // END_METHOD_processTemplate
@@ -233,48 +235,3 @@ export function templateRoleInstructions(language: ProcessTemplateLanguage): Rec
   ]))
 }
 // END_METHOD_templateRoleInstructions
-
-/**
- * START_METHOD_stepResultInstructions
- * Common report instructions; role behavior comes only from the project role file.
- */
-export function stepResultInstructions(outputPath: string, language: ProcessTemplateLanguage): string {
-  if (language === 'en') return `Perform the work described in the task requirements and your role instructions. Report the result, checks performed and remaining limitations.
-
-Save one final report to \`${outputPath}/report.md\`.
-Save additional documents and working artifacts for this step in the same directory.
-
-Write concisely and proportionately to the task. For a simple task, aim for 150–300 words; do not pad the report. Do not repeat the requirements or include search logs or raw tool output.
-
-If an intended tool is unavailable or fails, do not treat it as absent or automatically switch to editing files. Report the problem; use a workaround only if permitted by project rules.
-
-If a user decision is required, state the blocking question and pause work that depends on the answer.
-
-Do not modify the task state.json, process.json or runs.json, and do not use AICraft task management tools.
-
-In the chat, briefly state the result, report path and blocking questions. Finishing executor work does not mean the step is accepted.`
-  return `Выполни работу по постановке и инструкции своей роли. В отчёте укажи результат, выполненные проверки и оставшиеся ограничения.
-
-Сохрани единый итоговый отчёт в \`${outputPath}/report.md\`.
-Дополнительные документы и рабочие артефакты этого этапа сохраняй
-в том же каталоге.
-
-Пиши кратко и соразмерно задаче. Для простой задачи ориентируйся
-на 150–300 слов, не увеличивай отчёт ради объёма. Не пересказывай
-постановку, не включай журнал поиска и сырые ответы инструментов.
-
-Если предусмотренный инструмент недоступен или завершился ошибкой,
-не считай его отсутствующим и не переходи автоматически к изменению
-файлов. Укажи проблему; используй обходной путь только тогда,
-когда он разрешён правилами проекта.
-
-Если требуется решение пользователя, укажи блокирующий вопрос
-и приостанови зависимую от ответа работу.
-
-Не изменяй state.json, process.json и runs.json задачи
-и не используй инструменты управления задачей AICraft.
-
-В чате кратко сообщи результат, путь к отчёту и блокирующие вопросы.
-Завершение работы исполнителя не означает приёмку этапа.`
-}
-// END_METHOD_stepResultInstructions

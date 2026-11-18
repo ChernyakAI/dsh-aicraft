@@ -3,6 +3,7 @@
  * DESCRIPTION: Compose and install the plugin entry points
  */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-settings'
 import { registerAgentTools } from './dsh-integration/agent-tools.ts'
 import type { Config } from './dsh-integration/config.ts'
 import { AicraftService } from './dsh-integration/service.ts'
@@ -19,6 +20,9 @@ export const name: string = 'dsh-aicraft'
  * @param config - Validated deployment limits.
  */
 export function apply(ctx: Context, config: Config): void {
+  ctx.inject(['settings'], (owner) => {
+    owner.effect(() => owner.settings.configure({ auto: false }), 'aicraft: custom settings page')
+  })
   ctx.plugin(AicraftService, config)
   ctx.inject(['tools', 'aicraft', 'sandboxPolicy'], registerAgentTools)
   console.log('[dsh-aicraft] plugin loaded')

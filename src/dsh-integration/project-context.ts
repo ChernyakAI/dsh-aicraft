@@ -2,6 +2,7 @@
  * FILE: plugin/src/dsh-integration/project-context.ts
  * DESCRIPTION: Resolve registered workspaces and session-owned project paths
  */
+import { ownMessage, withUiMessage } from '../ui-message.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -14,9 +15,9 @@ import { resolve } from 'node:path'
 
 export function resolveProject(ctx: Context, workspaceId: string): string {
   const workspace = ctx.workspaceRegistry.get(brandString<WorkspaceId>(workspaceId))
-  if (!workspace) throw new Error('The selected project is no longer registered in DSH')
+  if (!workspace) throw withUiMessage(new Error('The selected project is no longer registered in DSH'), ownMessage({ key: 'reasonTheSelectedProjectIsNoLongerRegisteredInDSH' }))
   const cwd = ctx.fs.processPathFromHostPath(workspace.path)
-  if (cwd === undefined) throw new Error('The filesystem provider cannot read this project')
+  if (cwd === undefined) throw withUiMessage(new Error('The filesystem provider cannot read this project'), ownMessage({ key: 'reasonTheFilesystemProviderCannotReadThisProject' }))
   return cwd
 }
 // END_METHOD_resolveProject
@@ -29,7 +30,7 @@ export function resolveProject(ctx: Context, workspaceId: string): string {
  */
 export function workspaceForAgent(ctx: Context, cwd: string): string {
   const workspace = ctx.workspaceRegistry.list().find(item => resolve(item.path) === resolve(cwd))
-  if (!workspace) throw new Error('The session directory is not a registered DSH project')
+  if (!workspace) throw withUiMessage(new Error('The session directory is not a registered DSH project'), ownMessage({ key: 'reasonTheSessionDirectoryIsNotARegisteredDSHProject' }))
   return workspace.id
 }
 // END_METHOD_workspaceForAgent

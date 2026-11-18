@@ -2,20 +2,25 @@
  * FILE: plugin/src/client/material-editor.tsx
  * DESCRIPTION: Keep independent document drafts and floating editors
  */
+import { notice, noticeText, type Notice } from './messages.ts'
 import { DockController,FloatLayer,type DockIntents,type DockLabels,type TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { Button,MarkdownText,Modal,SegmentedControl } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { useEffect,useId,useMemo,useRef,useState,useSyncExternalStore,type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import type { MaterialDocument } from '../types.ts'
+import type { LocaleSource } from '../dsh-integration/client-locale.tsx'
+import type { MaterialDocument, OperationResult } from '../types.ts'
 
+/**
+ * Read and version-save editor documents and request a default prompt draft.
+ */
 export interface MaterialEditorApi {
   t: PropsLocale<'aicraft'>['t']
   load(workspaceId: string, path: string, signal: AbortSignal): Promise<MaterialDocument>
   /**
    * Editor save port supplied by PanelFace.saveMaterial.
    */
-  save(workspaceId: string, path: string, text: string, version: string, signal: AbortSignal): Promise<MaterialDocument>
+  save(workspaceId: string, path: string, text: string, version: string, signal: AbortSignal): Promise<OperationResult<MaterialDocument>>
   resetPrompt?(workspaceId: string, taskId: string, stepId: string, version: string, signal: AbortSignal): Promise<MaterialDocument>
   saved(workspaceId: string, path: string): void
 }
@@ -35,7 +40,7 @@ interface Entry {
  * START_METHOD_mountMaterialEditors
  * DSH's own floating layout, independent of a chat or the selected project.
  */
-export function mountMaterialEditors(api: MaterialEditorApi): {
+export function mountMaterialEditors(api: MaterialEditorApi & { locale: LocaleSource }): {
   open(workspaceId: string, workspaceTitle: string, path:
   string, preview?: MaterialDocument): void
   dispose(): void } {
@@ -47,6 +52,9 @@ export function mountMaterialEditors(api: MaterialEditorApi): {
   const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
   const getRevision = () => revision
   const close = (id: TabId) => { controller.closeTab(id); entries.delete(id); notify() }
+  /**
+   * Block closing while saving and request confirmation for an unsaved document.
+   */
   const requestClose = (id: TabId) => {
     const entry = entries.get(id)
     if (!entry || entry.saving) return
@@ -64,21 +72,21 @@ export function mountMaterialEditors(api: MaterialEditorApi): {
     resizeSplit: (id, sizes) => controller.resizeSplit(id, sizes),
   }
   const element = document.createElement('div')
-  element.className = 'aicraft-editor-windows'
+  element.className = 'aicraft-editor-windows aicraft-text-surface'
   Object.assign(element.style, { position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '1000', fontFamily: 'system-ui, sans-serif', fontSize: '14px' })
   document.body.appendChild(element)
   const root = createRoot(element)
   function Layer(): ReactNode {
     const { state } = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
     useSyncExternalStore(subscribe, getRevision)
-    const { t } = api
+    const { t } = useSyncExternalStore(api.locale.subscribe, api.locale.getSnapshot)
     const labels: DockLabels = { emptyPane: '', splitPane: '', splitPaneDisabled: '', splitPaneNarrow: '', addTab: '', dockFloat: '', closeTab: t('closeMaterial'), closeFloat: t('closeMaterial'), dropZone: { center: '', left: '', right: '', top: '', bottom: '' } }
     return <>
       <style>{'.aicraft-editor-windows [data-dockkit-float-dock] { display: none; }'}</style>
       <FloatLayer state={state} intents={intents} labels={labels} canCloseTab={id => !entries.get(id)?.saving}
         renderTabTitle={tab => <span>{tab.title}{entries.get(tab.id)?.dirty ? ' *' : ''}</span>}
         renderTab={(tab) => { const entry = entries.get(tab.id); return entry ? <MaterialEditor key={tab.id} entry={
-          entry} api={api} /> : null }} />
+          entry} api={{ ...api, t }} /> : null }} />
     </>
   }
   root.render(<Layer />)
@@ -87,6 +95,9 @@ export function mountMaterialEditors(api: MaterialEditorApi): {
   }
   window.addEventListener('beforeunload', unload)
   return {
+    /**
+     * Open or focus a floating editor bound to the original project and document.
+     */
     open(workspaceId, workspaceTitle, path, preview) {
       const existing = [...entries].find(([, entry]) => entry.workspaceId === workspaceId && entry.path === path)
       if (existing && !preview) { controller.focusTab(existing[0]); return }
@@ -110,7 +121,9 @@ export function mountMaterialEditors(api: MaterialEditorApi): {
 }
 // END_METHOD_mountMaterialEditors
 
-/** The task request uses the same versioned Markdown editor in a modal. */
+/**
+ * The task request uses the same versioned Markdown editor in a modal.
+ */
 export function TaskRequestDialog({ workspaceId, workspaceTitle, taskId, taskTitle, t, load, save, close }: {
   workspaceId: string
   workspaceTitle: string
@@ -143,9 +156,9 @@ export function TaskRequestDialog({ workspaceId, workspaceTitle, taskId, taskTit
   }, [entry])
   return <>
     <style>{'.aicraft-request-dialog { width: min(850px, 100%); max-height: 100%; }'}</style>
-    <Modal open title={`Task request — ${taskTitle}`} closeLabel={t('closeMaterial')} className="aicraft-request-dialog"
+    <Modal open title={t('taskRequestTitle', { title: taskTitle })} closeLabel={t('closeMaterial')} className="aicraft-request-dialog aicraft-text-surface"
       onClose={() => { if (!entry.saving) { if (entry.dirty) setConfirmClose(true); else close() } }}>
-      <div style={{ height: 'min(55vh, 500px)', minHeight: 0 }}><MaterialEditor entry={entry} api={api} /></div>
+      <div style={{ height: 'min(55vh, 500px)', minHeight: 0 }}><MaterialEditor entry={entry} api={{ ...api, t }} /></div>
       {confirmClose && <div role="alert">
         <p>{t('discardClosePrompt')}</p>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -157,7 +170,9 @@ export function TaskRequestDialog({ workspaceId, workspaceTitle, taskId, taskTit
   </>
 }
 
-/** Markdown source/preview with guarded saving; other documents remain read-only. */
+/**
+ * Markdown source/preview with guarded saving; other documents remain read-only.
+ */
 function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }): ReactNode {
   const { t } = api
   const modeId = useId()
@@ -175,7 +190,7 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
   const editable = !entry.preview && !(projectReadOnly ?? document?.readOnly) && /\.md$/i.test(entry.path)
   const markdown = /\.md$/i.test(entry.path) || entry.preview?.format === 'markdown'
   const [mode, setMode] = useState<'edit' | 'preview'>('preview')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<Notice | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [revision, setRevision] = useState(0)
@@ -187,12 +202,12 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
   const labels = useMemo(() => ({ code: { copyLabel: t('copy'), copiedLabel: t('copied') }, footnotes: t('footnotes') }), [t])
   useEffect(() => {
     const controller = new AbortController(); abort.current = controller
-    setDocument(null); setError(''); setSaved(false); entry.status(false, false)
+    setDocument(null); setError(null); setSaved(false); entry.status(false, false)
     void (entry.preview ? Promise.resolve(entry.preview) : api.load(entry.workspaceId, entry.path, controller.signal)).then((value) => {
       if (!controller.signal.aborted) { setDocument(value); setDraft(value.text) }
-    }, (error) => { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : String(error)) })
+    }, (error) => { if (!controller.signal.aborted) setError(notice(error, { key: 'documentReadFailed' })) })
     return () => controller.abort()
-  }, [entry, api, revision])
+  }, [entry, api.load, revision])
   const reload = () => { setConfirmReload(false); setRevision(value => value + 1) }
   /**
    * Submit this editor's draft through the injected MaterialEditorApi.save port.
@@ -200,29 +215,40 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
   const save = async (): Promise<boolean> => {
     if (!document || !dirty || confirmReset || saving || !editable) return false
     const signal = abort.current!.signal
-    setSaving(true); setError(''); setSaved(false); entry.status(dirty, true)
+    setSaving(true); setError(null); setSaved(false); entry.status(dirty, true)
     try {
-      const value = await api.save(entry.workspaceId, entry.path, draft, document.version, signal)
+      const result = await api.save(entry.workspaceId, entry.path, draft, document.version, signal)
       if (signal.aborted) return false
+      if (result.operationStatus !== 'confirmed') {
+        setError(notice(result))
+        entry.status(dirty, false)
+        return false
+      }
+      const value = result.value
       setDocument(value); setDraft(value.text); setSaved(true); entry.status(false, false)
-      api.saved(entry.workspaceId, entry.path)
+      if (result.refreshIssue) setError(notice(result.refreshIssue, { key: 'savedRefreshFailed' }))
+      try { api.saved(entry.workspaceId, entry.path) }
+      catch (error) { setError(notice(error, { key: 'savedRefreshFailed' })) }
       return true
     } catch (error) {
-      if (!signal.aborted) { setError(error instanceof Error ? error.message : String(error)); entry.status(dirty, false) }
+      if (!signal.aborted) { setError(notice(error, { key: 'documentSaveFailed' })); entry.status(dirty, false) }
       return false
     } finally { if (!signal.aborted) setSaving(false) }
   }
+  /**
+   * Load default prompt text into the draft while retaining the open document version.
+   */
   const reset = async () => {
     if (!document || saving || !editable || !promptPath || !api.resetPrompt) return
     setConfirmReset(false)
     const signal = abort.current!.signal
-    setSaving(true); setError(''); setSaved(false); entry.status(dirty, true)
+    setSaving(true); setError(null); setSaved(false); entry.status(dirty, true)
     try {
       const value = await api.resetPrompt(entry.workspaceId, promptPath[1]!, promptPath[2]!, document.version, signal)
       if (signal.aborted) return
       setDraft(value.text); setMode('edit'); entry.status(value.text !== document.text, false)
     } catch (error) {
-      if (!signal.aborted) { setError(error instanceof Error ? error.message : String(error)); entry.status(dirty, false) }
+      if (!signal.aborted) { setError(notice(error, { key: 'promptResetFailed' })); entry.status(dirty, false) }
     } finally { if (!signal.aborted) setSaving(false) }
   }
   return <section aria-label={`${t('materialWindow')}: ${entry.workspaceTitle} — ${entry.path}`} onKeyDown={(event) => { if (editable && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); event.stopPropagation(); void save() } }} style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, padding: 16, boxSizing: 'border-box' }}>
@@ -234,29 +260,29 @@ function MaterialEditor({ entry, api }: { entry: Entry; api: MaterialEditorApi }
         {editable ? <Button variant="outline" disabled={!dirty || saving || !document} onClick={() => { void save() }}>{t(saving ? 'saving' : 'save')}</Button> : <span style={{ fontSize: 12, opacity: 0.65 }}>{t('readOnly')}</span>}
       </> : <span style={{ fontSize: 12, opacity: 0.65 }}>{t('readOnly')}</span>}
       {!entry.preview && <Button variant="ghost" disabled={saving} onClick={() => { if (dirty) setConfirmReload(true); else reload() }}>{t('reload')}</Button>}
-      {editable && promptPath && api.resetPrompt && <Button type="button" variant="outline" disabled={saving || !document} onClick={() => setConfirmReset(true)}>Reset to default</Button>}
-      {dirty && !saving && <span role="status" style={{ fontSize: 12, opacity: 0.65 }}>Unsaved changes</span>}
-      {saved && <span role="status" style={{ fontSize: 12, color: '#22a06b' }}>{t('saved')}</span>}
+      {editable && promptPath && api.resetPrompt && <Button type="button" variant="outline" disabled={saving || !document} onClick={() => setConfirmReset(true)}>{t('uiResetToDefault')}</Button>}
+      {dirty && !saving && <span role="status" style={{ fontSize: 12, opacity: 0.65 }}>{t('uiUnsavedChanges')}</span>}
+      {saved && <span role="status" style={{ fontSize: 12, color: 'var(--aicraft-success, #22a06b)' }}>{t('saved')}</span>}
     </div>
-    {confirmReset && <Modal open title="Reset input prompt?" closeLabel="Close" onClose={() => setConfirmReset(false)}
-      footer={<><Button type="button" variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
-        <Button type="button" variant="outline" className="aicraft-destructive-confirm" onClick={() => { void reset() }}>Reset to default</Button></>}>
-      <p>Replace the text in this editor with a default prompt using the current project rules, role instructions and task requirements?</p>
-      <p>Unsaved editor changes will be replaced. The saved file stays unchanged until you choose Save.</p>
+    {confirmReset && <Modal className="aicraft-text-surface" open title={t('uiResetInputPrompt')} closeLabel={t('close')} onClose={() => setConfirmReset(false)}
+      footer={<><Button type="button" variant="ghost" onClick={() => setConfirmReset(false)}>{t('cancel')}</Button>
+        <Button type="button" variant="outline" className="aicraft-destructive-confirm" onClick={() => { void reset() }}>{t('uiResetToDefault')}</Button></>}>
+      <p>{t('resetPromptHint')}</p>
+      <p>{t('resetPromptWarning')}</p>
     </Modal>}
-    {(entry.confirmClose || confirmReload) && <div role="alert" style={{ padding: 10, marginBottom: 12, border: '1px solid #8090a050', borderRadius: 7 }}>
-      <p style={{ margin: '0 0 8px' }}>{entry.confirmClose ? 'Save changes before closing?' : t('discardReloadPrompt')}</p>
-      {entry.confirmClose && editable && <Button variant="outline" disabled={saving || !dirty} onClick={() => { void save().then((ok) => { if (ok) entry.close() }) }}>Save and close</Button>}
+    {(entry.confirmClose || confirmReload) && <div role="alert" style={{ padding: 10, marginBottom: 12, border: '1px solid var(--aicraft-border, #8090a050)', borderRadius: 7 }}>
+      <p style={{ margin: '0 0 8px' }}>{entry.confirmClose ? t('saveBeforeClosing') : t('discardReloadPrompt')}</p>
+      {entry.confirmClose && editable && <Button variant="outline" disabled={saving || !dirty} onClick={() => { void save().then((ok) => { if (ok) entry.close() }) }}>{t('uiSaveAndClose')}</Button>}
       <Button variant="outline" disabled={saving} onClick={() => { if (entry.confirmClose) entry.close(); else reload() }}>{t('discardChanges')}</Button>
       <Button variant="ghost" disabled={saving} onClick={() => { entry.keep(); setConfirmReload(false) }}>{t('keepEditing')}</Button>
     </div>}
-    {error && <p role="alert" style={{ color: '#dc4545', margin: '0 0 12px' }}>{error}</p>}
+    {error && <p role="alert" style={{ color: 'var(--aicraft-error, #dc4545)', margin: '0 0 12px' , overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{noticeText(t, error)}</p>}
     <div id={markdown ? `${modeId}-${mode}-panel` : undefined} role={markdown ? 'tabpanel' : undefined} aria-labelledby={markdown ? `${modeId}-${mode}` : undefined} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       {document === null ? !error && <p role="status">{t('loadingDocument')}</p>
         : markdown && mode === 'edit' ? <textarea autoFocus aria-label={t('markdownSource')} value={draft} readOnly={!editable} disabled={saving} spellCheck={false}
           onChange={(event) => { if (!editable) return; const text = event.target.value; setDraft(text); setSaved(false)
             entry.status(text !== document.text, saving) }}
-          style={{ flex: 1, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'none', padding: 12, border: '1px solid #8090a040', borderRadius: 7, background: 'transparent', color: 'inherit', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }} />
+          style={{ flex: 1, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'none', padding: 12, border: '1px solid var(--aicraft-border-subtle, #8090a040)', borderRadius: 7, background: 'transparent', color: 'inherit', fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6 }} />
           : <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
             {document.format === 'markdown' ? <MarkdownText text={editable ? draft : document.text} labels={labels} />
               : <pre style={{ margin: 0, padding: 12, fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{document.text}</pre>}

@@ -10,6 +10,7 @@ When creating a task, you select a suitable process. AICraft helps you follow it
 
 - A workflow builder for different types of tasks.
 - Project rules, role instructions, and editable step prompts.
+- Agent task coordination: launch executors, review results and move between stages.
 - Model selection for each step or individual run, with separate executor chats.
 - Artifacts, run history, execution time, and task expenses (DeepSeek models only).
 - Complete, skip, and repeat steps; finish and reopen tasks.
@@ -32,27 +33,14 @@ When creating a task, you select a suitable process. AICraft helps you follow it
 
 ## Installation
 
-> Before asking an agent to install the plugin, switch to **Creator mode**.
+Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.2.2-rc.3**. Choose an installation method:
 
-1. Install [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) version **0.2.1-rc.5**.
-2. Download the latest version of the plugin from [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases).
-3. In DSH, open **Plugins → Add plugin**, enter the path to the downloaded archive, and install it. Do not unpack the archive. Access to the npm registry is required to install dependencies.
-4. Fully quit DSH and launch it again. In Desktop, use **Quit DeepSeek Harness**: closing the window may leave the application running in the system tray.
-5. Open **AICraft** in the sidebar.
+- **Discover** — add the AICraft index source, find the plugin and click **Install**.
+- **GitHub Releases** — download the `.tgz` from [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases) and install it through **Plugins → Add plugin**.
 
-If you use the CLI, add the archive to the profile you use to run DSH:
+Fully quit and restart DSH, then open **AICraft** in the sidebar. Both methods provide a ready plugin; no build is required.
 
-```sh
-dsh plugin --profile <profile> add "<path>/dsh-aicraft-<version>.tgz"
-```
-
-Desktop uses the `desktop` profile; the standard Web setup uses `web`. The `dsh` command must belong to your DSH installation.
-
-## Updating and uninstalling
-
-Wait for the agent to finish its work. Remove the previous plugin through **Plugins**, install the new `.tgz`, and fully restart DSH. Removing the package preserves the `.aicraft/` files in your projects.
-
-If AICraft does not appear or a new command returns HTTP 404, check the DSH version and selected profile, and make sure you fully quit the application before restarting it.
+[More about installing, updating and uninstalling.](docs/install.en.md)
 
 ---
 
@@ -60,4 +48,6 @@ If AICraft does not appear or a new command returns HTTP 404, check the DSH vers
 
 ## License
 
-AICraft is distributed under the [MIT License](LICENSE). Third-party code notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+AICraft is licensed under [AGPL-3.0-only](LICENSE).
+
+[Distribution terms](docs/license.en.md) · [Third-party notices](THIRD_PARTY_NOTICES.en.md).

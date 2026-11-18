@@ -2,6 +2,7 @@
  * FILE: plugin/src/execution-accounting/types.ts
  * DESCRIPTION: Expose the owner-defined data contracts
  */
+import type { UiMessage } from '../ui-message.ts'
 export interface StatisticsBucket {
   provider: string
   model: string
@@ -32,6 +33,7 @@ export interface ExecutionStatistics {
   sessions: number
   coverageIncomplete: boolean
   incomplete: string[]
+  incompleteMessages?: UiMessage[]
 }
 
 export interface PriceUsage { input: number; cacheRead: number | null; cacheWrite: number | null; output: number }

@@ -22,7 +22,7 @@ export function ProjectPicker({ projects, presence, selectedId, busy, t, select 
   const hasProject = (id: string): boolean => presence.some(item => item.workspaceId === id && item.hasAicraft)
   return <div style={{ flex: '0 1 300px', minWidth: 0 }}>
     <div style={{ display: 'grid' }}>
-      <Menu open={open && !busy} portal autoFocus selection="fill" selectedId={selectedId} onClose={() => setOpen(false)}
+      <Menu listClassName="aicraft-text-surface" open={open && !busy} portal autoFocus selection="fill" selectedId={selectedId} onClose={() => setOpen(false)}
         onSelect={(id) => { select(id); setOpen(false) }}
         items={[{ id: '', label: t('chooseProject'), icon: selectedId === '' ? <IconCheckOutlineRegular size={14} /> : <span /> }, ...projects.map(project => ({
           id: project.workspaceId,
@@ -33,7 +33,7 @@ export function ProjectPicker({ projects, presence, selectedId, busy, t, select 
           </span>,
         }))]}
         anchor={<button id="aicraft-project" type="button" disabled={busy} aria-label={t('project')} aria-haspopup="menu" aria-expanded={open && !busy}
-          onClick={() => setOpen(value => !value)} style={{ width: '100%', height: 40, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 7, border: '1px solid #8090a060', color: 'inherit', background: 'transparent', textAlign: 'left' }}>
+          onClick={() => setOpen(value => !value)} style={{ width: '100%', height: 40, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 7, border: '1px solid var(--aicraft-border, #8090a060)', color: 'inherit', background: 'transparent', textAlign: 'left' }}>
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected?.title ?? t('chooseProject')}</span>
           {selected && hasProject(selected.workspaceId) && <AicraftIcon size={18} />}
           <IconChevronDownOutlineRegular size={16} />
@@ -57,13 +57,13 @@ export function TaskPicker({ tasks, selectedId, busy, t, select, create, canCrea
     const Icon = { open: IconListPenOutlineRegular, completed: IconCheckCircleOutlineRegular, cancelled: IconStopFillRegular }[status]
     return <Tooltip label={t(status === 'open' ? 'openTask' : status)} portal>
       <span role="img" aria-label={t(status === 'open' ? 'openTask' : status)} data-task-status={status}
-        style={{ display: 'inline-flex', flexShrink: 0, opacity: status === 'cancelled' ? 0.65 : 0.85, color: { open: '#3b82f6', completed: '#22a06b', cancelled: 'inherit' }[status] }}>
+        style={{ display: 'inline-flex', flexShrink: 0, opacity: status === 'cancelled' ? 0.65 : 0.85, color: { open: 'var(--dsw-alias-link, #3b82f6)', completed: 'var(--aicraft-success, #22a06b)', cancelled: 'inherit' }[status] }}>
         <Icon size={16} />
       </span>
     </Tooltip>
   }
   return <div style={{ flex: '0 1 300px', minWidth: 0, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)' }}>
-    <Menu open={open && !busy} listClassName="aicraft-task-menu" portal autoFocus selection="fill" selectedId={selectedId} onClose={() => setOpen(false)}
+    <Menu open={open && !busy} listClassName="aicraft-task-menu aicraft-text-surface" portal autoFocus selection="fill" selectedId={selectedId} onClose={() => setOpen(false)}
       onSelect={(id) => { if (id === ':create') create(); else select(id); setOpen(false) }}
       items={[...tasks.map(task => ({
         id: task.id,
@@ -77,7 +77,7 @@ export function TaskPicker({ tasks, selectedId, busy, t, select, create, canCrea
         </span>,
       })), { type: 'separator', id: ':create-separator' }, { id: ':create', label: t('create'), disabled: !canCreate }]}
       anchor={<button type="button" disabled={busy || tasks.length === 0} aria-label={t('taskPicker')} aria-haspopup="menu" aria-expanded={open && !busy}
-        onClick={() => setOpen(value => !value)} style={{ width: '100%', minWidth: 0, height: 40, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 7, border: '1px solid #8090a060', color: 'inherit', background: 'transparent', textAlign: 'left' }}>
+        onClick={() => setOpen(value => !value)} style={{ width: '100%', minWidth: 0, height: 40, boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 7, border: '1px solid var(--aicraft-border, #8090a060)', color: 'inherit', background: 'transparent', textAlign: 'left' }}>
         <span title={selected?.title} style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected?.title ?? t('chooseTask')}</span>
         {selected && statusIcon(selected.status)}
         <IconChevronDownOutlineRegular size={16} />

@@ -11,9 +11,10 @@ export interface ProjectConfig {
   lockWaitMs: number
 }
 /** Deployment limits for Git reads and project writer locks. */
-export interface Config extends ProjectConfig {}
+export type Config = ReturnType<typeof Config>
 /** Validate operation limits before plugin activation. */
-export const Config: Schema<Config> = Schema.object({
+export const Config = Schema.object({
+  oneCDark: Schema.boolean().default(false).volatile(),
   gitTimeoutMs: Schema.natural().min(1).max(2147483647).default(10000),
   gitGraceMs: Schema.natural().min(1).max(2147483647).default(1000),
   lockWaitMs: Schema.natural().min(1).max(2147483647).default(10000),

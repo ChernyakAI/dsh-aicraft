@@ -2,6 +2,7 @@
  * FILE: plugin/src/execution-accounting/session-source.ts
  * DESCRIPTION: Read version-guarded project-local session folds without retaining cold logs
  */
+import { ownMessage, withUiMessage } from '../ui-message.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { interruptedTurnClosers, SessionLogOffset } from '@deepseek-ai/dsh-session'
@@ -32,15 +33,17 @@ interface Selection {
   address?: string
 }
 class SourceChanged extends Error {}
-const version = '0.2.1-rc.5'
+const version = '0.2.2-rc.3'
 const providerName = '@deepseek-ai/dsh-session-persistence-jsonl'
 const absent = (error: unknown) => record(error).code === 'ENOENT'
 const physicalRevision = (info: BigIntStats) =>
   [info.dev, info.ino, info.size, info.mtimeNs, info.ctimeNs].join(':')
 
-/** Encode UTF-16 units as the pinned JSONL layout does, including isolated surrogates. */
+/**
+ * Encode UTF-16 units as the pinned JSONL layout does, including isolated surrogates.
+ */
 export function encodeSessionSegment(value: string): string {
-  if (!value) throw new Error('Empty session path segment')
+  if (!value) throw withUiMessage(new Error('Empty session path segment'), ownMessage({ key: 'reasonEmptySessionPathSegment' }))
   if (value === '.' || value === '..') return '~002E'.repeat(value.length)
   let output = ''
   for (let i = 0; i < value.length; i++) {
@@ -50,9 +53,11 @@ export function encodeSessionSegment(value: string): string {
   return output
 }
 
-/** The readable project key is lossy; it must never replace header cwd validation. */
+/**
+ * The readable project key is lossy; it must never replace header cwd validation.
+ */
 export function sessionProjectKey(cwd: string): string {
-  if (!cwd) throw new Error('Empty session project path')
+  if (!cwd) throw withUiMessage(new Error('Empty session project path'), ownMessage({ key: 'reasonEmptySessionProjectPath' }))
   const slug = encodeSessionSegment(cwd.replace(/[\\/:]+/g, '-')).replace(/^-+/, '') || 'root'
   return `--${slug.slice(0, 251)}--`
 }
@@ -169,13 +174,13 @@ export class SessionSource {
       const boundary = raw.inheritedEventCount
       if (raw.status !== 'current' || meta.id !== id || meta.version !== 4 || !Array.isArray(events)
         || raw.eventState !== 'shared-frozen' || !Number.isSafeInteger(boundary) || (boundary as number) < 0
-        || (boundary as number) > events.length || (!meta.isSeeded && boundary !== 0)) throw new Error('Invalid stored session snapshot')
+        || (boundary as number) > events.length || (!meta.isSeeded && boundary !== 0)) throw withUiMessage(new Error('Invalid stored session snapshot'), ownMessage({ key: 'reasonInvalidStoredSessionSnapshot' }))
       if (raw.revision !== selected.stamp?.revision) throw new SourceChanged()
-      if (typeof meta.cwd !== 'string' || !isAbsolute(meta.cwd)) throw new Error('Stored session has no valid project')
+      if (typeof meta.cwd !== 'string' || !isAbsolute(meta.cwd)) throw withUiMessage(new Error('Stored session has no valid project'), ownMessage({ key: 'reasonStoredSessionHasNoValidProject' }))
       if (normalize(meta.cwd) !== normalize(cwd)) {
         const actual = await realpath(meta.cwd), expected = await realpath(cwd)
         this.check(id, selected, signal)
-        if (actual !== expected) throw new Error('Stored session belongs to another project')
+        if (actual !== expected) throw withUiMessage(new Error('Stored session belongs to another project'), ownMessage({ key: 'reasonStoredSessionBelongsToAnotherProject' }))
       }
       const balanced = [...events as SessionEvent[], ...interruptedTurnClosers(events as SessionEvent[])]
       const prepared = this.ctx.get('sessions')!.prepare(id, { meta: structuredClone(meta) as unknown as SessionHeader,
@@ -228,6 +233,6 @@ export class SessionSource {
         if (!changed || attempt === 1) throw error
       }
     }
-    throw new Error('Session source remained unstable')
+    throw withUiMessage(new Error('Session source remained unstable'), ownMessage({ key: 'reasonSessionSourceRemainedUnstable' }))
   }
 }

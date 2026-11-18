@@ -4,18 +4,20 @@ DESCRIPTION: Build and package the plugin in its supported development environme
 -->
 # Building AICraft from source
 
-Node.js 24 LTS and pnpm 11.28.5 are required. The supported DSH version is 0.2.1-rc.5; no adjacent DSH checkout is needed.
+Node.js 24.9.0 or newer and pnpm 11.28.5 are required. The supported DSH version is 0.2.2-rc.3; no adjacent DSH checkout is needed.
+
+The public Git package already contains ready `lib/` files for installation. Use this guide when an independent source build is requested.
 
 From the root of the public repository, run:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm pack --pack-destination "<output-directory>"
+pnpm run package "<output-directory>"
 ```
 
-Replace `<output-directory>` with an output directory appropriate to the user's request. `pnpm pack` checks types and builds the plugin automatically. On failure, stop dependent actions and report the cause.
+Replace `<output-directory>` with an output directory appropriate to the user's request. The pack command checks types, builds the plugin and packages the installable files. Source README images are omitted from the archive; the source documents are restored after packaging, including on failure. On failure, stop dependent actions and report the cause.
 
-Check the archive and the presence of `LICENSE` and `THIRD_PARTY_NOTICES.md`. Compute SHA-256 for this local build and save its own `SHA256SUMS` alongside it; do not use the published release checksum as its expected hash. See [archive verification](install.md#archive-verification) for the separate release and local-build checks. Keep Russian and English user documentation synchronized. Agent guides in `docs/agents/` are English only.
+Check the archive and the presence of `LICENSE`, `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_NOTICES.en.md`. Compute SHA-256 for this local build and save its own `SHA256SUMS` alongside it; do not use the published release checksum as its expected hash. See [archive verification](install.md#archive-verification) for the separate release and local-build checks. Keep Russian and English user documentation synchronized. Agent guides in `docs/agents/` are English only.
 
 Building leaves `lib/`, `.build/`, and installed dependencies. Afterwards, remove only temporary files you created that are no longer needed; preserve source code, other people's changes, and the finished package.
 
