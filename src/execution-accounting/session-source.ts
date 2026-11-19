@@ -33,7 +33,7 @@ interface Selection {
   address?: string
 }
 class SourceChanged extends Error {}
-const version = '0.2.2-rc.3'
+const version = '0.2.2-rc.5'
 const providerName = '@deepseek-ai/dsh-session-persistence-jsonl'
 const absent = (error: unknown) => record(error).code === 'ENOENT'
 const physicalRevision = (info: BigIntStats) =>

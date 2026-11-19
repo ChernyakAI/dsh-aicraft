@@ -33,7 +33,7 @@ When creating a task, you select a suitable process. AICraft helps you follow it
 
 ## Installation
 
-Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.2.2-rc.3**. Choose an installation method:
+Requires [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **>=0.2.2-rc.5**. Choose an installation method:
 
 - **Discover** — add the AICraft index source, find the plugin and click **Install**.
 - **GitHub Releases** — download the `.tgz` from [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases) and install it through **Plugins → Add plugin**.

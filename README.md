@@ -33,7 +33,7 @@
 
 ## Установка
 
-Требуется [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **0.2.2-rc.3**. Выберите способ установки:
+Требуется [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) **>=0.2.2-rc.5**. Выберите способ установки:
 
 - **Discover** — добавьте источник индекса AICraft, найдите плагин и нажмите **Install**.
 - **GitHub Releases** — скачайте `.tgz` из [Releases](https://github.com/ChernyakAI/dsh-aicraft/releases) и установите через **Plugins → Add plugin**.

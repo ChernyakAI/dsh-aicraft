@@ -1,5 +1,9 @@
 # Release notes
 
+## Version 0.4.2
+
+- Adds support for **DeepSeek Harness 0.2.2-rc.5**.
+
 ## Version 0.4.1
 
 - Adds support for **DeepSeek Harness 0.2.2-rc.3**.
